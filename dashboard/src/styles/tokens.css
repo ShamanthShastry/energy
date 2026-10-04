@@ -1,0 +1,14 @@
+/* HomeWatt design tokens (CMP-16). Source of truth for every colour in the dashboard.
+   Light palette per Shamanth, 2026-10-03. Amber for warnings, red only for failures. */
+:root {
+  --bg: #F7F8F5;          /* page ground: off-white with a hint of green, not cream */
+  --surface: #FFFFFF;     /* cards */
+  --line: #E1E6DF;        /* borders, grid lines */
+  --fg: #17201B;          /* primary text */
+  --muted: #5C6B62;       /* secondary text, labels */
+  --green-700: #1F6B45;   /* primary buttons, links, headline numbers */
+  --green-500: #2E9E63;   /* accent, active states, chart line */
+  --green-100: #DDF2E6;   /* tints, selected tile, chip backgrounds */
+  --warn: #B8772A;        /* spike alerts, "act" severity (amber, not red) */
+  --crit: #A33D2E;        /* only failed actuations and data errors */
+}

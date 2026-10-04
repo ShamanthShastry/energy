@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.2 — DRAFT |
+| Version | 0.3 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -29,7 +29,7 @@ Specification of all 20 components (CMP-01 … CMP-20) corresponding to every da
 ### 1.3 Out of scope
 
 - Autonomous control. The Tracker changes a device only when the user taps an action (TRS-SYS-03). Scheduling, automation, and any change without a tap are out of scope.
-- The internal design of wrapped third-party components (TimescaleDB, Open-Meteo, LightGBM, PyTorch). This document specifies their interfaces and expected behaviour.
+- The internal design of wrapped third-party components (SpacetimeDB, Open-Meteo, LightGBM, PyTorch). This document specifies their interfaces and expected behaviour.
 - Utility-side data-sharing integrations (Green Button Connect, UtilityAPI). Named as the production ingestion path; not built in V1.
 - Billing accuracy. Dollar figures are estimates derived from a user-entered tariff, not a reproduction of the utility's invoice.
 
@@ -54,7 +54,7 @@ The MHacks 26 build team, hackathon judges reviewing technical depth, and anyone
 | Duty cycle | Fraction of time an appliance is on within a window. The primary anomaly feature for cycling loads such as a fridge. |
 | Carbon intensity | kg CO₂ per kWh of grid electricity for a given hour and region. |
 | Replay | Feeding a recorded or synthetic timeline into ingestion at a controlled rate so the system behaves as if live. The V1 demo input. |
-| Continuous aggregate | A TimescaleDB materialised view that maintains hourly or daily rollups incrementally. |
+| Rollup table | A SpacetimeDB table (appliance\_hourly, appliance\_daily) maintained incrementally by the write reducer. |
 | Household head | The single authenticated user of a household's dashboard. |
 
 ## 3. Conventions
@@ -107,7 +107,9 @@ Every component carries exactly one classification. The central design invariant
 
 **TRS-SYS-05** — Every action proposed to the user shall carry its own expected saving, the assumption it rests on, and a status tracked to disposition (accepted, dismissed, verified).
 
-**TRS-SYS-06** — The Tracker shall be implemented in Python 3.11 or later for all ingestion, modelling, and API components, with TimescaleDB (PostgreSQL 16) as the only data store. The dashboard may be implemented in TypeScript.
+**TRS-SYS-06** — The Tracker shall be implemented in Python 3.11 or later for all ingestion, modelling, and API components, with SpacetimeDB (Maincloud, TypeScript module) as the only data store. Tables and write logic live in the module (`spacetimedb/`); Python components call reducers and read over the SQL endpoint with the owner identity; the dashboard subscribes to public tables. The dashboard and the module are TypeScript.
+
+> Changed in v0.3 (decision of S. Shastry, 2026-10-03): TimescaleDB replaced by SpacetimeDB. Hypertables, continuous aggregates, compression, and SQL roles have no equivalent; the clauses below that referenced them are restated in SpacetimeDB terms.
 
 **TRS-SYS-07** — Every ML model shall be evaluated on a held-out split that shares no recording session with its training data, and its held-out error shall be shown wherever its output is shown (TRS-16-06).
 
@@ -264,7 +266,7 @@ V1 is a hackathon build. The following are simulated at the demo and labelled as
 | --- | --- |
 | Class | STORE |
 | Flowchart element | "Tariff table" |
-| Implementing tool | TimescaleDB plain table, seeded from a YAML file |
+| Implementing tool | SpacetimeDB table `tariff_period`, seeded from a YAML file by a reducer |
 | Owner | Backend lead |
 
 **Purpose.** The authoritative mapping from (hour, weekday) to $/kWh and kg CO₂/kWh. Every dollar and carbon figure in the Tracker is a product of a kWh value and a row from this table (TRS-SYS-01).
@@ -328,10 +330,10 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | --- | --- |
 | Class | DET |
 | Flowchart element | "Ingestion service: validate, timestamp, batch insert" |
-| Implementing tool | Python 3.11, asyncio, psycopg3 with COPY batching |
+| Implementing tool | Python 3.11; batches sent as one `ingest_batch` reducer call over the SpacetimeDB HTTP API |
 | Owner | Backend lead |
 
-**Purpose.** The single write path for sensor data. Validates every sample, detects gaps, and inserts in batches so that TimescaleDB never sees a row-at-a-time load.
+**Purpose.** The single write path for sensor data. Validates every sample, detects gaps, and inserts in batches so that the store never sees a row-at-a-time load.
 
 **Inputs**
 
@@ -344,7 +346,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 | Name | Destination | Format |
 | --- | --- | --- |
-| Validated aggregate rows | CMP-07 | Batched insert, ≤ 500 rows or 1 s, whichever first |
+| Validated aggregate rows | CMP-07 | One `ingest_batch` call per batch, ≤ 500 rows or 1 s, whichever first |
 | Validated plug rows | CMP-08 appliance\_power | Batched insert, source='plug' |
 | Gap event | CMP-07 ingest\_log | {household\_id, gap\_start, gap\_end, samples\_dropped} |
 
@@ -353,8 +355,8 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-05-01 — The service shall reject any sample whose timestamp is earlier than the last accepted timestamp for that household, and shall count the rejection.
 - TRS-05-02 — The service shall reject any sample with p\_active\_w < 0, vrms\_v outside 90–290 V, or any harmonic field missing, and shall count each rejection by reason.
 - TRS-05-03 — The service shall emit a gap event whenever consecutive accepted timestamps differ by more than 10 s.
-- TRS-05-04 — Inserts shall be batched. The service shall not issue more than 2 INSERT statements per second per household under steady load.
-- TRS-05-05 — The service shall be the only component with INSERT privilege on raw\_aggregate. Models, the API, and the dashboard shall hold SELECT only.
+- TRS-05-04 — Inserts shall be batched. The service shall not issue more than 2 `ingest_batch` reducer calls per second per household under steady load.
+- TRS-05-05 — The service shall be the only component that calls `ingest_batch`, and `ingest_batch` shall be the only reducer that inserts into raw\_aggregate. Write reducers accept only the database owner identity; the dashboard holds no owner token and reads public tables only.
 - TRS-05-06 — The service shall accept replay input (CMP-06) and live input (CMP-01) through the same interface with no code path that distinguishes them (TRS-01-04).
 
 **Error handling.** Database unavailable: buffer in memory up to 60 s of samples, then drop oldest and count. Never block the sensor.
@@ -362,7 +364,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 **Verification criteria**
 
 - Replay a session at 10× speed; confirm row count in raw\_aggregate equals accepted samples and the rejection counters equal the known bad rows.
-- Static check: grep for INSERT INTO raw\_aggregate; exactly one call site.
+- Static check: exactly one `rawAggregate.insert` in the module and exactly one `call("ingest_batch")` in Python.
 
 **Dependencies.** CMP-07, CMP-08.
 
@@ -430,8 +432,8 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | Field | Value |
 | --- | --- |
 | Class | STORE |
-| Flowchart element | "TimescaleDB raw\_aggregate" |
-| Implementing tool | TimescaleDB hypertable, 1-day chunks, compression after 7 days |
+| Flowchart element | "raw\_aggregate store" |
+| Implementing tool | SpacetimeDB private table `raw_aggregate` with a btree index on (household\_id, ts\_us) |
 | Owner | Backend lead |
 
 **Purpose.** The immutable record of what the sensor saw. Every disaggregation and rollup is derived from it and can be regenerated from it (TRS-SYS-04).
@@ -453,28 +455,27 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 | Field | Type | Purpose |
 | --- | --- | --- |
-| household\_id | text | Partition key |
-| ts | timestamptz | Sensor-assigned, hypertable time column |
+| household\_id | text | Index key |
+| ts\_us | i64 | Sensor-assigned, microseconds since the epoch, UTC |
 | p\_active\_w | real | Active power |
 | irms\_a, vrms\_v, power\_factor | real | Electrical context |
 | h1 … h32 | real | Current harmonics |
-| ingested\_at | timestamptz | Server time, for lag monitoring |
+| ingested\_at | timestamp | Server time (reducer timestamp), for lag monitoring |
 
 **Requirements**
 
-- TRS-07-01 — The table shall be a hypertable partitioned on ts with household\_id as a space dimension.
-- TRS-07-02 — Rows shall never be updated or deleted by any Tracker component. Retention, if any, is an operator policy applied by chunk drop, never by row delete.
-- TRS-07-03 — (household\_id, ts) shall be unique. A duplicate insert shall be ignored, not errored, and counted by CMP-05.
-- TRS-07-04 — Chunks older than 7 days shall be compressed. Compression shall not change query results.
-- TRS-07-05 — A window read of 24 h for one household (43,200 rows) shall return in under 500 ms on the demo hardware.
+- TRS-07-01 — The table shall carry a btree index on (household\_id, ts\_us) so that window reads are index range scans.
+- TRS-07-02 — Rows shall never be updated or deleted by any Tracker component; no reducer other than `ingest_batch` touches the table and `ingest_batch` only inserts. Retention, if any, is an operator action outside the module.
+- TRS-07-03 — (household\_id, ts\_us) shall be unique. A duplicate insert shall be ignored, not errored, and counted in `ingest_stats` by the reducer; CMP-05 reconciles its counters from that table.
+- TRS-07-04 — Retired in v0.3 (no compression in SpacetimeDB). Storage budget: the Maincloud free tier allows about 1 GB of table storage; a 14-day 2 s timeline is roughly 0.15 GB.
+- TRS-07-05 — A window read of 24 h for one household (43,200 rows) over the SQL endpoint shall return in under 5 s from the demo network; the measured figure is recorded by the live test.
 
 **Error handling.** Disk-full is an operator alert, not a Tracker code path.
 
 **Verification criteria**
 
-- Insert a duplicate (household\_id, ts); confirm one row and a counted duplicate.
-- Compress a 10-day chunk; confirm a checksum of a window query matches pre-compression.
-- Time a 24 h window read; confirm < 500 ms.
+- Insert a duplicate (household\_id, ts\_us); confirm one row and a counted duplicate in `ingest_stats`.
+- Time a 24 h window read; record the figure.
 
 **Dependencies.** CMP-05.
 
@@ -485,8 +486,8 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | Field | Value |
 | --- | --- |
 | Class | STORE |
-| Flowchart element | "TimescaleDB appliance\_power + hourly rollups" |
-| Implementing tool | TimescaleDB hypertable + two continuous aggregates (hourly, daily); plain tables for weather, households, appliances, actions |
+| Flowchart element | "appliance\_power + hourly rollups" |
+| Implementing tool | SpacetimeDB private table `appliance_power` plus `appliance_hourly` and `appliance_daily` rollup tables maintained incrementally by the `write_appliance_power` reducer; public tables for weather, households, appliances, actions |
 | Owner | Backend lead |
 
 **Purpose.** Holds per-appliance power, whether measured (plug) or estimated (NILM), and the rollups every dashboard panel and model reads. Also holds the relational tables: households, appliances, weather, actions, alerts.
@@ -504,8 +505,8 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 | Name | Destination | Format |
 | --- | --- | --- |
-| Hourly kWh per appliance | CMP-11, CMP-12, CMP-13, CMP-15 | Continuous aggregate appliance\_hourly |
-| Daily kWh per appliance | CMP-15 | Continuous aggregate appliance\_daily |
+| Hourly kWh per appliance | CMP-11, CMP-12, CMP-13, CMP-15 | Rollup table appliance\_hourly |
+| Daily kWh per appliance | CMP-15 | Rollup table appliance\_daily |
 | Appliance window | CMP-12 | Raw 2 s rows for duty-cycle analysis |
 
 **Schema (appliance\_power)**
@@ -514,17 +515,18 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | --- | --- | --- |
 | household\_id | text | Partition key |
 | appliance\_id | text | FK to appliances |
-| ts | timestamptz | Aligned to the aggregate sample |
-| watts | real | Estimated or measured |
-| source | enum | plug, nilm |
-| model\_version | text | Required when source='nilm'; null for plug |
+| ts\_us | i64 | Aligned to the aggregate sample, microseconds UTC |
+| watts | f32 | Estimated or measured |
+| source | text | plug, nilm |
+| model\_version | text | Required when source='nilm'; empty for plug |
+| dt\_s | f32 | Interval the sample covers, assigned by the reducer (TRS-08-03) |
 
 **Requirements**
 
 - TRS-08-01 — (household\_id, appliance\_id, ts, source) shall be unique. A plug row and a NILM row may coexist for the same appliance and timestamp; readers shall prefer plug (TRS-02-03).
-- TRS-08-02 — Every NILM row shall carry a non-null model\_version (TRS-SYS-02). An insert without one shall be rejected by a check constraint.
-- TRS-08-03 — The hourly continuous aggregate shall compute kWh as the time-weighted integral of watts, not the mean of samples, so that gaps do not inflate energy.
-- TRS-08-04 — Continuous aggregates shall refresh at least every 5 minutes for the trailing 2 hours and shall be materialised for all older data.
+- TRS-08-02 — Every NILM row shall carry a non-empty model\_version (TRS-SYS-02). An insert without one shall be rejected by the reducer.
+- TRS-08-03 — The hourly rollup shall compute kWh as the time-weighted integral of watts, not the mean of samples, so that gaps do not inflate energy. Realised as Σ watts × dt\_s where dt\_s is the interval since the previous row of the same key when that is ≤ 10 s, else the nominal 2 s; a gap therefore contributes no energy.
+- TRS-08-04 — Rollups shall be maintained in the same transaction as the appliance\_power insert, so they are never stale.
 - TRS-08-05 — A residual appliance\_id='baseload' shall be written for every timestep as aggregate minus the sum of all other appliances, floored at zero.
 - TRS-08-06 — Re-running NILM with a new model\_version shall add rows, never replace them. The dashboard reads the latest model\_version per household (TRS-SYS-04).
 
@@ -860,7 +862,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-15-03 — A spike shall be reported when a forecast day's cost exceeds the trailing 14-day mean daily cost by more than 25%. The margin shall be a single named constant.
 - TRS-15-04 — Every per-appliance response shall include source and model\_version (TRS-SYS-02).
 - TRS-15-05 — Every endpoint shall respond in under 300 ms for a household with 30 days of data on demo hardware.
-- TRS-15-06 — The API shall hold SELECT on CMP-07 and CMP-08 and INSERT only on the actions and alerts tables (for status changes).
+- TRS-15-06 — The API shall read CMP-07 and CMP-08 over the SQL endpoint and shall call only the action and alert status-transition reducers; it shall never call `ingest_batch` or `write_appliance_power`.
 
 **Error handling.** Missing forecast: /summary returns projected = null with reason='no\_forecast'; the dashboard shows month-to-date only.
 
@@ -931,7 +933,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | --- | --- |
 | Class | STORE |
 | Flowchart element | "User accepts action?" decision + "Track actual savings" |
-| Implementing tool | TimescaleDB plain table actions |
+| Implementing tool | SpacetimeDB public table `action` plus `action_transition` |
 | Owner | Backend lead |
 
 **Purpose.** Makes every suggestion a first-class object with a lifecycle, so that "did it work" can be answered later (TRS-SYS-05).
@@ -1142,7 +1144,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 - TRS-00-01 — The library shall hold, per appliance, every activation extracted from every retained session: a contiguous run where sub-metered p\_active\_w > 10 W for ≥ 3 samples, with all 37 fields and a 5-sample margin either side.
 - TRS-00-02 — Sessions shall be split into train (12) and test (3) once, by session, and the split recorded in a file. No component shall re-split.
-- TRS-00-03 — A session shall be excluded when the sum of its appliance files differs from its aggregate by more than 10% of aggregate mean over the session. Session 05-21 (ratio 5.33) is excluded under this rule.
+- TRS-00-03 — A session shall be excluded when the sum of its appliance files differs from its aggregate by more than 10% of aggregate mean over the session. Session 05-21 is excluded under this rule: measured ratio 1.18 (not 5.33 as first recorded), caused by six of its eight sub-meter files stopping after about four minutes while the aggregate ran for three hours. CMP-00 records per-appliance coverage alongside the ratio so the cause is visible. All other sessions measure 0.96–1.00.
 - TRS-00-04 — The library shall record, per appliance, the activation count and on-time fraction, so that appliances with too few activations (iron, lamp, screen in this dataset) are flagged before anyone trains on them.
 - TRS-00-05 — The set shall include at least one real test session with an injected 30 s gap and one with a duplicated timestamp, as negative cases for CMP-05 and CMP-09.
 - TRS-00-06 — The set shall be version-controlled and shall serve as the pytest corpus.
@@ -1231,3 +1233,5 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | --- | --- | --- | --- |
 | 0.1 | 2026-10-03 | S. Shastry | Initial draft from the MHacks 26 architecture flowchart. Not baselined. |
 | 0.2 | 2026-10-03 | S. Shastry | TRS-SYS-03 rewritten to permit tap-only device control; CMP-19 Device Actuator added (simulated thermostat V1, Nest SDM production). CMP-11/13 grouped as the Advisor; CMP-20 Gemini Narrator added with AI class; Voice tab (TRS-16-11). CMP-18 promoted to V1 with weekly success scores feeding CMP-13 ranking (TRS-13-08 to 13-13). HVAC synthesized from weather (TRS-06-07 to 06-09, TRS-09-09). DTE D1.11 recorded as reference tariff. Annex A ATL added. OI-01, OI-02 resolved; OI-08, OI-09 added. Not baselined. |
+| 0.2.1 | 2026-10-03 | Claude (for S. Shastry) | Scaffold findings, no requirement change: TRS-00-03 ratio for session 05-21 corrected from 5.33 to the measured 1.18 and the sub-meter coverage cause recorded. Open question raised to S. Shastry: the dataset fridge draws a constant ~58 W and never cycles, so the CMP-06/CMP-12 "fridge duty cycle +40%" example cannot be built from real activations; demo fault provisionally a +40% power fault (mean_on_watts). Not baselined. |
+| 0.3 | 2026-10-03 | Claude (for S. Shastry) | Data store changed from TimescaleDB to SpacetimeDB (Maincloud, TypeScript module) by decision of S. Shastry. TRS-SYS-06 rewritten; CMP-04/05/07/08/15/17 implementing tools restated; TRS-05-04/05, TRS-07-01/02/03/05, TRS-08-02/03/04, TRS-15-06 restated in reducer terms; TRS-07-04 retired. Timestamps stored as microsecond integers. Not baselined. |

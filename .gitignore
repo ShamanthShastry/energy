@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Secrets and local config
+.env
+
+# Data that is regenerated, never committed
+data/raw/
+data/synthetic/
+data/weather/*.parquet
+
+# Model artefacts
+models/
+
+# Node
+node_modules/
+dashboard/dist/
+
+# OS
+.DS_Store
+
+# Office lock files
+~$*
+
+# SpacetimeDB
+spacetime.local.json
+spacetimedb/node_modules/

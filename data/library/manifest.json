@@ -1,0 +1,725 @@
+{
+  "trs": [
+    "TRS-00-01",
+    "TRS-00-03",
+    "TRS-00-04",
+    "TRS-00-05"
+  ],
+  "built_at": "2026-10-04T03:00:59+00:00",
+  "dataset": "Dinar, Paris, Busvelle, Sensors 2025, 25, 4601 (github.com/fariddinar/nilm-dataset)",
+  "sample_period_s": 2.0,
+  "extraction": {
+    "on_threshold_w": 10.0,
+    "min_samples": 3,
+    "margin_samples": 5
+  },
+  "sessions": {
+    "05-12": {
+      "rows": 14811,
+      "hours": 8.23
+    },
+    "05-14": {
+      "rows": 14827,
+      "hours": 8.24
+    },
+    "05-15": {
+      "rows": 14823,
+      "hours": 8.23
+    },
+    "05-16": {
+      "rows": 14827,
+      "hours": 8.24
+    },
+    "05-19": {
+      "rows": 8148,
+      "hours": 4.53
+    },
+    "05-20": {
+      "rows": 4898,
+      "hours": 2.72
+    },
+    "05-21": {
+      "rows": 5282,
+      "hours": 2.93
+    },
+    "05-22": {
+      "rows": 14822,
+      "hours": 8.23
+    },
+    "05-23": {
+      "rows": 9383,
+      "hours": 5.21
+    },
+    "05-26": {
+      "rows": 9261,
+      "hours": 5.14
+    },
+    "06-02": {
+      "rows": 11116,
+      "hours": 6.18
+    },
+    "06-16": {
+      "rows": 11119,
+      "hours": 6.18
+    },
+    "06-17": {
+      "rows": 11129,
+      "hours": 6.18
+    },
+    "06-18": {
+      "rows": 11108,
+      "hours": 6.17
+    },
+    "06-20": {
+      "rows": 12974,
+      "hours": 7.21
+    },
+    "06-24": {
+      "rows": 14808,
+      "hours": 8.23
+    }
+  },
+  "consistency": {
+    "05-12": {
+      "session": "05-12",
+      "aggregate_mean_w": 386.5662536621094,
+      "appliance_sum_mean_w": 386.0099792480469,
+      "ratio": 0.9985609855780408,
+      "consistent": true,
+      "aggregate_rows": 14811,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-14": {
+      "session": "05-14",
+      "aggregate_mean_w": 200.50563049316406,
+      "appliance_sum_mean_w": 201.1152801513672,
+      "ratio": 1.0030405612884967,
+      "consistent": true,
+      "aggregate_rows": 14827,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-15": {
+      "session": "05-15",
+      "aggregate_mean_w": 216.4569854736328,
+      "appliance_sum_mean_w": 216.34620666503906,
+      "ratio": 0.999488217909201,
+      "consistent": true,
+      "aggregate_rows": 14823,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-16": {
+      "session": "05-16",
+      "aggregate_mean_w": 223.3755340576172,
+      "appliance_sum_mean_w": 223.77455139160156,
+      "ratio": 1.0017863072411568,
+      "consistent": true,
+      "aggregate_rows": 14827,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-19": {
+      "session": "05-19",
+      "aggregate_mean_w": 318.28192138671875,
+      "appliance_sum_mean_w": 316.9670104980469,
+      "ratio": 0.9958687226627797,
+      "consistent": true,
+      "aggregate_rows": 8148,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-20": {
+      "session": "05-20",
+      "aggregate_mean_w": 147.29052734375,
+      "appliance_sum_mean_w": 141.86122131347656,
+      "ratio": 0.9631387969872468,
+      "consistent": true,
+      "aggregate_rows": 4898,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 0.414,
+        "fridge": 0.414,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 0.414,
+        "lamp": 0.414
+      },
+      "reason": null
+    },
+    "05-21": {
+      "session": "05-21",
+      "aggregate_mean_w": 312.4248352050781,
+      "appliance_sum_mean_w": 367.37017822265625,
+      "ratio": 1.1758673985744814,
+      "consistent": false,
+      "aggregate_rows": 5282,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 0.023,
+        "fridge": 0.023,
+        "iron": 0.023,
+        "screen": 0.023,
+        "laptop": 0.023,
+        "lamp": 0.023
+      },
+      "reason": "appliance sum / aggregate = 1.18, outside 1\u00b10.10; sub-meters covering < 50% of the session: straightener, fridge, iron, screen, laptop, lamp"
+    },
+    "05-22": {
+      "session": "05-22",
+      "aggregate_mean_w": 254.35414123535156,
+      "appliance_sum_mean_w": 252.56483459472656,
+      "ratio": 0.9929652938539366,
+      "consistent": true,
+      "aggregate_rows": 14822,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-23": {
+      "session": "05-23",
+      "aggregate_mean_w": 198.79739379882812,
+      "appliance_sum_mean_w": 197.98934936523438,
+      "ratio": 0.9959353368867027,
+      "consistent": true,
+      "aggregate_rows": 9383,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "05-26": {
+      "session": "05-26",
+      "aggregate_mean_w": 271.5911865234375,
+      "appliance_sum_mean_w": 269.9397888183594,
+      "ratio": 0.9939195460419125,
+      "consistent": true,
+      "aggregate_rows": 9261,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "06-02": {
+      "session": "06-02",
+      "aggregate_mean_w": 315.031494140625,
+      "appliance_sum_mean_w": 311.2973327636719,
+      "ratio": 0.9881467045473039,
+      "consistent": true,
+      "aggregate_rows": 11116,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 0.931,
+        "fridge": 0.931,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "06-16": {
+      "session": "06-16",
+      "aggregate_mean_w": 304.7527770996094,
+      "appliance_sum_mean_w": 299.677490234375,
+      "ratio": 0.9833462161902613,
+      "consistent": true,
+      "aggregate_rows": 11119,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "06-17": {
+      "session": "06-17",
+      "aggregate_mean_w": 188.65000915527344,
+      "appliance_sum_mean_w": 186.18344116210938,
+      "ratio": 0.9869251636710291,
+      "consistent": true,
+      "aggregate_rows": 11129,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "06-18": {
+      "session": "06-18",
+      "aggregate_mean_w": 287.10992431640625,
+      "appliance_sum_mean_w": 284.1255798339844,
+      "ratio": 0.9896055683566932,
+      "consistent": true,
+      "aggregate_rows": 11108,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "06-20": {
+      "session": "06-20",
+      "aggregate_mean_w": 227.45359802246094,
+      "appliance_sum_mean_w": 225.24154663085938,
+      "ratio": 0.9902747135642888,
+      "consistent": true,
+      "aggregate_rows": 12974,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    },
+    "06-24": {
+      "session": "06-24",
+      "aggregate_mean_w": 313.8866882324219,
+      "appliance_sum_mean_w": 311.1387634277344,
+      "ratio": 0.9912454879174336,
+      "consistent": true,
+      "aggregate_rows": 14808,
+      "coverage": {
+        "hair_dryer": 1.0,
+        "water_heater": 1.0,
+        "straightener": 1.0,
+        "fridge": 1.0,
+        "iron": 1.0,
+        "screen": 1.0,
+        "laptop": 1.0,
+        "lamp": 1.0
+      },
+      "reason": null
+    }
+  },
+  "excluded": {
+    "05-21": "appliance sum / aggregate = 1.18, outside 1\u00b10.10; sub-meters covering < 50% of the session: straightener, fridge, iron, screen, laptop, lamp"
+  },
+  "per_appliance": {
+    "fridge": {
+      "activations_total": 15,
+      "activations_train": 12,
+      "activations_test": 3,
+      "activations_by_session": {
+        "05-12": 1,
+        "05-14": 1,
+        "05-15": 1,
+        "05-16": 1,
+        "05-19": 1,
+        "05-20": 1,
+        "05-22": 1,
+        "05-23": 1,
+        "05-26": 1,
+        "06-02": 1,
+        "06-16": 1,
+        "06-17": 1,
+        "06-18": 1,
+        "06-20": 1,
+        "06-24": 1
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.9997,
+        "05-14": 0.9998,
+        "05-15": 0.9979,
+        "05-16": 0.9997,
+        "05-19": 0.999,
+        "05-20": 0.9673,
+        "05-22": 0.9995,
+        "05-23": 0.9995,
+        "05-26": 1.0,
+        "06-02": 1.0,
+        "06-16": 1.0,
+        "06-17": 0.858,
+        "06-18": 0.9996,
+        "06-20": 0.9996,
+        "06-24": 0.9999
+      },
+      "on_time_fraction_mean": 0.988,
+      "flag_low_activations": true
+    },
+    "hair_dryer": {
+      "activations_total": 39,
+      "activations_train": 31,
+      "activations_test": 8,
+      "activations_by_session": {
+        "05-12": 6,
+        "05-14": 2,
+        "05-15": 4,
+        "05-16": 3,
+        "05-19": 2,
+        "05-20": 1,
+        "05-22": 5,
+        "05-23": 1,
+        "05-26": 2,
+        "06-02": 4,
+        "06-16": 1,
+        "06-17": 1,
+        "06-18": 2,
+        "06-20": 2,
+        "06-24": 3
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.0805,
+        "05-14": 0.0585,
+        "05-15": 0.063,
+        "05-16": 0.0612,
+        "05-19": 0.0669,
+        "05-20": 0.0367,
+        "05-22": 0.0794,
+        "05-23": 0.0353,
+        "05-26": 0.1402,
+        "06-02": 0.0599,
+        "06-16": 0.0179,
+        "06-17": 0.0227,
+        "06-18": 0.0948,
+        "06-20": 0.0426,
+        "06-24": 0.2044
+      },
+      "on_time_fraction_mean": 0.0709,
+      "flag_low_activations": false
+    },
+    "iron": {
+      "activations_total": 391,
+      "activations_train": 292,
+      "activations_test": 99,
+      "activations_by_session": {
+        "05-12": 153,
+        "05-14": 0,
+        "05-15": 30,
+        "05-16": 28,
+        "05-19": 15,
+        "05-20": 0,
+        "05-22": 22,
+        "05-23": 3,
+        "05-26": 19,
+        "06-02": 24,
+        "06-16": 0,
+        "06-17": 0,
+        "06-18": 12,
+        "06-20": 33,
+        "06-24": 52
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.0553,
+        "05-14": 0.0,
+        "05-15": 0.0146,
+        "05-16": 0.0138,
+        "05-19": 0.0133,
+        "05-20": 0.0,
+        "05-22": 0.0121,
+        "05-23": 0.0046,
+        "05-26": 0.0143,
+        "06-02": 0.0165,
+        "06-16": 0.0,
+        "06-17": 0.0,
+        "06-18": 0.0113,
+        "06-20": 0.0156,
+        "06-24": 0.0236
+      },
+      "on_time_fraction_mean": 0.013,
+      "flag_low_activations": false
+    },
+    "lamp": {
+      "activations_total": 0,
+      "activations_train": 0,
+      "activations_test": 0,
+      "activations_by_session": {
+        "05-12": 0,
+        "05-14": 0,
+        "05-15": 0,
+        "05-16": 0,
+        "05-19": 0,
+        "05-20": 0,
+        "05-22": 0,
+        "05-23": 0,
+        "05-26": 0,
+        "06-02": 0,
+        "06-16": 0,
+        "06-17": 0,
+        "06-18": 0,
+        "06-20": 0,
+        "06-24": 0
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.0,
+        "05-14": 0.0,
+        "05-15": 0.0,
+        "05-16": 0.0,
+        "05-19": 0.0,
+        "05-20": 0.0,
+        "05-22": 0.0,
+        "05-23": 0.0,
+        "05-26": 0.0,
+        "06-02": 0.0,
+        "06-16": 0.0,
+        "06-17": 0.0,
+        "06-18": 0.0,
+        "06-20": 0.0,
+        "06-24": 0.0
+      },
+      "on_time_fraction_mean": 0.0,
+      "flag_low_activations": true
+    },
+    "laptop": {
+      "activations_total": 15,
+      "activations_train": 12,
+      "activations_test": 3,
+      "activations_by_session": {
+        "05-12": 1,
+        "05-14": 1,
+        "05-15": 1,
+        "05-16": 1,
+        "05-19": 1,
+        "05-20": 1,
+        "05-22": 1,
+        "05-23": 1,
+        "05-26": 1,
+        "06-02": 1,
+        "06-16": 1,
+        "06-17": 1,
+        "06-18": 1,
+        "06-20": 1,
+        "06-24": 1
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.9997,
+        "05-14": 0.9998,
+        "05-15": 0.9981,
+        "05-16": 0.9997,
+        "05-19": 0.9994,
+        "05-20": 0.9667,
+        "05-22": 0.9995,
+        "05-23": 0.9994,
+        "05-26": 1.0,
+        "06-02": 1.0,
+        "06-16": 1.0,
+        "06-17": 0.6624,
+        "06-18": 0.9997,
+        "06-20": 0.9995,
+        "06-24": 0.9998
+      },
+      "on_time_fraction_mean": 0.9749,
+      "flag_low_activations": true
+    },
+    "screen": {
+      "activations_total": 97,
+      "activations_train": 65,
+      "activations_test": 32,
+      "activations_by_session": {
+        "05-12": 0,
+        "05-14": 13,
+        "05-15": 0,
+        "05-16": 16,
+        "05-19": 0,
+        "05-20": 14,
+        "05-22": 9,
+        "05-23": 3,
+        "05-26": 4,
+        "06-02": 9,
+        "06-16": 5,
+        "06-17": 4,
+        "06-18": 4,
+        "06-20": 4,
+        "06-24": 12
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.0,
+        "05-14": 0.0057,
+        "05-15": 0.0,
+        "05-16": 0.0064,
+        "05-19": 0.0,
+        "05-20": 0.9818,
+        "05-22": 0.8797,
+        "05-23": 0.9253,
+        "05-26": 0.8389,
+        "06-02": 0.8528,
+        "06-16": 0.8738,
+        "06-17": 0.9382,
+        "06-18": 0.8485,
+        "06-20": 0.5756,
+        "06-24": 0.7974
+      },
+      "on_time_fraction_mean": 0.5683,
+      "flag_low_activations": false
+    },
+    "straightener": {
+      "activations_total": 19,
+      "activations_train": 14,
+      "activations_test": 5,
+      "activations_by_session": {
+        "05-12": 1,
+        "05-14": 2,
+        "05-15": 2,
+        "05-16": 1,
+        "05-19": 1,
+        "05-20": 0,
+        "05-22": 2,
+        "05-23": 0,
+        "05-26": 1,
+        "06-02": 1,
+        "06-16": 1,
+        "06-17": 1,
+        "06-18": 2,
+        "06-20": 1,
+        "06-24": 3
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.9997,
+        "05-14": 0.0222,
+        "05-15": 0.0804,
+        "05-16": 0.0963,
+        "05-19": 0.1704,
+        "05-20": 0.0,
+        "05-22": 0.2291,
+        "05-23": 0.0,
+        "05-26": 0.0567,
+        "06-02": 0.0437,
+        "06-16": 0.2823,
+        "06-17": 0.401,
+        "06-18": 0.0433,
+        "06-20": 0.0755,
+        "06-24": 0.3394
+      },
+      "on_time_fraction_mean": 0.1893,
+      "flag_low_activations": true
+    },
+    "water_heater": {
+      "activations_total": 21,
+      "activations_train": 18,
+      "activations_test": 3,
+      "activations_by_session": {
+        "05-12": 2,
+        "05-14": 2,
+        "05-15": 1,
+        "05-16": 2,
+        "05-19": 1,
+        "05-20": 0,
+        "05-22": 2,
+        "05-23": 1,
+        "05-26": 1,
+        "06-02": 2,
+        "06-16": 2,
+        "06-17": 1,
+        "06-18": 2,
+        "06-20": 2,
+        "06-24": 0
+      },
+      "on_time_fraction_by_session": {
+        "05-12": 0.0796,
+        "05-14": 0.0368,
+        "05-15": 0.0301,
+        "05-16": 0.039,
+        "05-19": 0.0951,
+        "05-20": 0.0,
+        "05-22": 0.0391,
+        "05-23": 0.0376,
+        "05-26": 0.0192,
+        "06-02": 0.086,
+        "06-16": 0.1068,
+        "06-17": 0.0385,
+        "06-18": 0.0549,
+        "06-20": 0.0421,
+        "06-24": 0.0
+      },
+      "on_time_fraction_mean": 0.047,
+      "flag_low_activations": true
+    }
+  },
+  "negative_cases": {
+    "gap30s": "negative/05-16_gap30s.parquet",
+    "duplicate": "negative/05-16_dup.parquet"
+  }
+}

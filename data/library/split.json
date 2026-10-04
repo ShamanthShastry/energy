@@ -1,0 +1,27 @@
+{
+  "trs": "TRS-00-02",
+  "written_at": "2026-10-04T03:00:58+00:00",
+  "rule": "by recording session; never by shuffled sample (TRS-SYS-07)",
+  "train": [
+    "05-12",
+    "05-14",
+    "05-15",
+    "05-19",
+    "05-20",
+    "05-22",
+    "05-23",
+    "06-02",
+    "06-16",
+    "06-17",
+    "06-18",
+    "06-20"
+  ],
+  "test": [
+    "05-16",
+    "05-26",
+    "06-24"
+  ],
+  "excluded": {
+    "05-21": "appliance sum / aggregate = 1.18, outside 1\u00b10.10; sub-meters covering < 50% of the session: straightener, fridge, iron, screen, laptop, lamp"
+  }
+}

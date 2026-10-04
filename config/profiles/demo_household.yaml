@@ -1,0 +1,95 @@
+# Demo synthetic household (TRS-06-09). Appliance types from the real dataset plus synthesized HVAC.
+# Hours are local (America/Detroit). Windows are half-open [start_hour, end_hour).
+household_id: hh-demo
+local_tz: America/Detroit
+vrms_v: 240.0
+baseload_w: 60.0      # TRS-06-01 constant baseload (router, standby, clocks)
+noise_w: 3.0          # zero-mean Gaussian noise, W
+
+appliances:
+  # The dataset's fridge draws a constant ~58 W for every session and never cycles (checked
+  # 2026-10-03 across all 16 sessions). It is modelled as it was recorded: continuous, sliced
+  # into 1-3 h pieces so the harmonic signature varies. The demo health fault is therefore a
+  # `power` fault (+40% draw), seen by CMP-12 through mean_on_watts, not duty_cycle.
+  # To model compressor cycling instead: mode: cycling, off_gap_s: [900, 2400], slice_s: [600, 1200].
+  fridge:
+    type: fridge
+    label: fridge
+    mode: continuous
+    slice_s: [3600, 10800]
+
+  water_heater:
+    type: water_heater
+    label: water heater
+    uses_per_day: 3.0
+    windows:
+      - {start_hour: 6, end_hour: 9, weight: 3}
+      - {start_hour: 15, end_hour: 19, weight: 3}    # peak-hour use: what shift_out_of_peak prices
+      - {start_hour: 19, end_hour: 23, weight: 1}
+    weekday_mult: 1.0
+    weekend_mult: 1.2
+
+  hair_dryer:
+    type: hair_dryer
+    label: hair dryer
+    uses_per_day: 1.5
+    windows:
+      - {start_hour: 6, end_hour: 9, weight: 4}
+      - {start_hour: 16, end_hour: 19, weight: 2}
+      - {start_hour: 20, end_hour: 23, weight: 1}
+
+  straightener:
+    type: straightener
+    label: hair straightener
+    uses_per_day: 0.8
+    windows:
+      - {start_hour: 6, end_hour: 9, weight: 3}
+      - {start_hour: 16, end_hour: 19, weight: 1}
+
+  iron:
+    type: iron
+    label: iron
+    uses_per_day: 0.3
+    windows:
+      - {start_hour: 17, end_hour: 21, weight: 1}
+    weekend_mult: 2.0
+
+  laptop:                          # recorded as a whole-session charger draw; sliced to 1-3 h uses
+    type: laptop
+    label: laptop
+    uses_per_day: 4.5
+    slice_s: [3600, 10800]
+    windows:
+      - {start_hour: 8, end_hour: 12, weight: 2}
+      - {start_hour: 13, end_hour: 18, weight: 3}
+      - {start_hour: 19, end_hour: 23, weight: 2}
+
+  screen:
+    type: screen
+    label: TV
+    uses_per_day: 4.0
+    slice_s: [1800, 7200]
+    windows:
+      - {start_hour: 12, end_hour: 15, weight: 1}
+      - {start_hour: 18, end_hour: 23, weight: 4}
+    weekend_mult: 1.5
+
+  # lamp: 4-7 W in the dataset, below the 10 W activation threshold (TRS-00-01), so CMP-00 holds
+  # no lamp activations (flagged LOW per TRS-00-04). It is absorbed into baseload_w.
+
+# TRS-06-07 thermostat model (cooling only). Overridable here without a code change.
+thermostat:
+  enabled: true
+  appliance_id: hvac
+  label: air conditioner
+  p_hvac_w: 3000
+  setpoint_c: 24.0
+  hysteresis_c: 0.5
+  tau_h: 4.0
+  cooling_rate_c_per_h: 1.5
+  min_outdoor_c: 15.0
+  power_factor: 0.90
+  harmonic_profile: default
+  min_setpoint_c: 18.0
+  max_setpoint_c: 27.0
+  max_step_c: 2.0

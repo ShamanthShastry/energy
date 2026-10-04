@@ -10,7 +10,7 @@ Read `HANDOFF.md` first, then `TRS-HOMEWATT-001.md` in full, before writing any 
 
 ## Source of truth
 
-`TRS-HOMEWATT-001.md` (v0.2). Every module maps to a CMP-nn; every behaviour maps to a TRS-nn-mm. Reference the requirement ID in commit messages and docstrings. Bump the revision history table when the TRS changes.
+`TRS-HOMEWATT-001.md` (v0.3). Every module maps to a CMP-nn; every behaviour maps to a TRS-nn-mm. Reference the requirement ID in commit messages and docstrings. Bump the revision history table when the TRS changes.
 
 ## Hard rules (from the TRS, see HANDOFF.md §Settled decisions)
 
@@ -19,18 +19,20 @@ Read `HANDOFF.md` first, then `TRS-HOMEWATT-001.md` in full, before writing any 
 - Model evaluation splits by recording session, never by shuffled sample. Forecaster: time-ordered 80/20.
 - Gemini (CMP-20) is a narrator. Structured input only; every number verbatim; never proposes actions.
 - Actions come only from the ATL (`atl.yaml`, Annex A). Six templates. Adding one is a TRS change.
-- Raw data is never updated or deleted. Derived tables add rows under a new `model_version`.
+- Raw data is never updated or deleted. Derived tables add rows under a new `model_version`. Only `ingest_batch` inserts into raw_aggregate; only the owner identity may call write reducers.
 - Dataset session `05-21` is excluded. The train/test split file is written once and never re-split.
 
 ## Stack
 
-Python 3.11 · TimescaleDB (PostgreSQL 16) · FastAPI · PyTorch (seq2point) + NILMTK (CO baseline) · LightGBM · Gemini API (JSON response schema) · React + TypeScript · Open-Meteo.
+Python 3.11 · SpacetimeDB on Maincloud (TypeScript module in `spacetimedb/`, database `house-energy-7q7yy`) · FastAPI · PyTorch (seq2point) + NILMTK (CO baseline) · LightGBM · Gemini API (JSON response schema) · React + TypeScript · Open-Meteo.
 
 ## Conventions
 
 - `src/homewatt/cmpNN_<name>/` one package per component, matching the TRS numbering.
 - `tests/` mirrors it; each TRS verification criterion becomes a test named `test_trs_NN_MM_<slug>`.
-- Timestamps are UTC `timestamptz` in the DB; local time only in the tariff lookup and the dashboard.
+- Timestamps are `*_us` i64 microseconds since the epoch, UTC, in SpacetimeDB; local time only in the tariff lookup and the dashboard.
+- Python never writes tables by SQL. Every write is a reducer in `spacetimedb/src/index.ts`; reducer struct arguments use snake_case field names. SpacetimeDB SQL has no ORDER BY or GROUP BY: sort in Python.
+- `init` runs only on a database's first publish; `spacetime publish --delete-data=always` re-runs it (demo reset only).
 - Energy in kWh, power in W, temperature in °C internally. Convert at the display layer.
 - Synthetic timelines are files under `data/synthetic/`, fed through the replay path only (TRS-05-06). Never insert them directly.
 - Demo timelines are dated June–September (DTE summer peak gap).

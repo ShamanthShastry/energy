@@ -44,14 +44,14 @@ Dataset: https://github.com/fariddinar/nilm-dataset (cite Dinar, Paris, Busvelle
 
 ## Stack (from the TRS)
 
-Python 3.11 for everything server-side. TimescaleDB on PostgreSQL 16 (hypertables `raw_aggregate`, `appliance_power`; continuous aggregates hourly/daily; plain tables for households, appliances, weather, tariff, actions, alerts, statements, actuations, outcome_scores). FastAPI for CMP-15. PyTorch seq2point for NILM (NILMTK CO as baseline). LightGBM for the forecaster. Gemini API with JSON response schema for the narrator. React + TypeScript dashboard. Open-Meteo for weather (no key). APScheduler or cron, undecided (OI-06).
+Python 3.11 for everything server-side. **SpacetimeDB on Maincloud (database `house-energy-7q7yy`, TypeScript module in `spacetimedb/`, decided 2026-10-03, TRS v0.3)**: tables `raw_aggregate`, `appliance_power`, rollup tables `appliance_hourly`/`appliance_daily` maintained by the write reducer, public tables for households, appliances, weather, tariff, actions, alerts, statements, actuations, outcome_scores. Python calls reducers over HTTP with the owner token (`spacetime login`). FastAPI for CMP-15. PyTorch seq2point for NILM (NILMTK CO as baseline). LightGBM for the forecaster. Gemini API with JSON response schema for the narrator. React + TypeScript dashboard. Open-Meteo for weather (no key). APScheduler or cron, undecided (OI-06).
 
 ## Build order (what to scaffold first)
 
-1. Repo layout, `docker-compose` with TimescaleDB, DDL for every table in the TRS, `pyproject.toml`.
-2. **CMP-00:** clone the dataset, extract activations per appliance (sub-meter > 10 W for ≥ 3 samples, 5-sample margin), write the session split file, exclude 05-21. Log activation counts.
-3. **CMP-06:** synthetic timeline generator incl. the thermostat model and a fault script. Seeded, reproducible. Output = 37-field aggregate + per-appliance ground truth.
-4. **CMP-05 + CMP-07 + CMP-08:** ingestion with replay at N× speed, batched COPY, gap detection. Verify integral-based hourly kWh.
+1. Repo layout, SpacetimeDB module (`spacetimedb/src/schema.ts`) with every table in the TRS, `pyproject.toml`. DONE 2026-10-03.
+2. **CMP-00:** clone the dataset, extract activations per appliance (sub-meter > 10 W for ≥ 3 samples, 5-sample margin), write the session split file, exclude 05-21. Log activation counts. DONE; see `data/library/manifest.json`. Dataset surprises: the fridge is a constant 58 W (never cycles), the lamp is under 10 W, iron activations are thermostat pulses.
+3. **CMP-06:** synthetic timeline generator incl. the thermostat model and a fault script. Seeded, reproducible. Output = 37-field aggregate + per-appliance ground truth. DONE; demo fault is provisionally a +40% fridge power fault (decision pending, see memory).
+4. **CMP-05 + CMP-07 + CMP-08:** ingestion with replay at N× speed, batched reducer calls, gap detection. Verify integral-based hourly kWh. DONE against Maincloud (`tests/module/test_live_store.py`).
 5. **CMP-09:** NILMTK CO baseline first (no training), then seq2point. Report per-appliance MAE / F1 / energy ratio on the 3 held-out sessions. Harmonics ablation.
 6. **CMP-04 + CMP-11 + CMP-13 + Annex A YAML:** tariff table with seasons, LightGBM vs seasonal-naive, simulator with parameter search.
 7. **CMP-15 + CMP-16 + CMP-17:** API, five-panel dashboard, action ledger.

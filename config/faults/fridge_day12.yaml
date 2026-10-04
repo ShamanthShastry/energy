@@ -1,0 +1,8 @@
+# Demo story (HANDOFF build order step 9): fridge fault from day 12.
+# The dataset's fridge never cycles (constant ~58 W), so the fault is a +40% power draw rather
+# than +40% duty cycle; CMP-12 sees it through mean_on_watts (TRS-12-02/03). Switch to
+# kind: duty_cycle if the fridge profile is changed to mode: cycling.
+appliance_id: fridge
+start_day: 12
+kind: power
+magnitude: 0.40
