@@ -25,7 +25,7 @@ export function AuthScreen({ onIn }: { onIn: (me: Me) => void }) {
 
   return (
     <div className="auth">
-      <div className="brand auth-brand"><span className="logo" aria-hidden="true">⌁</span><span>HomeWatt</span></div>
+      <div className="brand auth-brand"><span className="logo" aria-hidden="true">⌁</span><span>Synergy</span></div>
       <section className="card auth-card">
         <div className="auth-tabs" role="tablist" aria-label="Sign up or log in">
           <button role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'tab active' : 'tab'} onClick={() => { setMode('signup'); setErr(null); }}>Sign up</button>

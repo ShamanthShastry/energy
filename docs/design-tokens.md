@@ -26,3 +26,12 @@ Canonical file: `dashboard/src/styles/tokens.css`. Nothing in the dashboard uses
 - "measured" / "estimated" / "simulated feed" / "synthetic HVAC" labels (TRS-SYS-02, TRS-16-07, TRS-09-09): `--muted`.
 - Forecast range p50–p90 (TRS-16-05): band in `--green-100`, line in `--green-500`.
 - Headline dollar figures: `--green-700`.
+
+## Look (v0.12.1, after the Tesla energy app, light mode)
+
+- Type: Figtree (Google Fonts), fallback system sans. Values large and light (`.hero` 56 px / 400, `.stat-value` 34 px / 500) set above a tiny uppercase caption (`.caption`: 11 px, 600, letter-spacing .09em, `--muted`). Section titles 15 px / 650.
+- Sections, not cards: no boxes; each panel starts with a 1 px `--line` rule and generous padding. The page ground is `--bg`; `--surface` is kept for modals and inputs.
+- Status captions (`.chip`): a 7 px dot plus uppercase text, coloured only by meaning (`--green-700` ok, `--warn` heads-up, `--crit` failure, `--muted` with a hollow dot for simulated).
+- Bars: 6 px rounded tracks in `--line`, fills in `--green-500`; chart bars rounded, gridlines dotted, axis text as captions.
+- Buttons: 6 px radius; primary `--green-700` on white, quiet outlined in `--line`. Inputs are underline-only.
+- Tabs and the header: brand as small caps; the home's name as the page title with a live-status line (dot in `--green-500`).

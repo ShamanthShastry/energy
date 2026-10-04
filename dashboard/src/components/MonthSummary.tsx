@@ -29,24 +29,24 @@ export function MonthSummary({ s }: { s: Summary | null }) {
   return (
     <Card id="summary" title="This month's bill" subtitle={`${s.month_label} · ${s.fixed_charge_note}`}>
       <div className="summary-top">
-        <div>
-          <div className="label">So far</div>
-          <div className="hero">{s.month_to_date_display}</div>
+        <div className="stat">
+          <div className="hero green">{s.month_to_date_display}</div>
+          <div className="caption">So far this month</div>
           <div className="delta">
             {s.vs_last_month_display ? (
               <><strong>{s.vs_last_month_display}</strong> vs the same days last month</>
             ) : <span className="muted">{s.vs_last_month_note}</span>}
           </div>
         </div>
-        <div className="projection">
-          <div className="label">Heading for</div>
+        <div className="projection stat">
           {s.projected ? (
             <>
               <div className="proj-figure">{s.projected.p50_display}<span className="muted"> to {s.projected.p90_display}</span></div>
+              <div className="caption">Heading for</div>
               <RangeBar mtd={s.daily.filter(d => d.kind === 'actual').reduce((a, d) => a + (d.usd ?? 0), 0)} p50={s.projected.p50} p90={s.projected.p90} />
               <div className="small muted">Likely total, and a high-end estimate</div>
             </>
-          ) : <div className="muted">No forecast yet</div>}
+          ) : <><div className="proj-figure muted">–</div><div className="caption">Heading for</div></>}
         </div>
       </div>
       <div className="chart" aria-label="Daily cost this month">
@@ -69,7 +69,7 @@ export function MonthSummary({ s }: { s: Summary | null }) {
                 className={pick ? 'mark mark-pick' : 'mark'} onClick={pick} role={pick ? 'button' : undefined} aria-pressed={pick ? sel === d.day : undefined}
                 onKeyDown={pick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } } : undefined}>
                 <rect x={x - 1} y={padT} width={bw + 2} height={H - padB - padT} fill="transparent" />
-                <path d={roundTop(x, top, bw, H - padB - top)} className={sel === d.day ? 'bar-selected' : d.kind === 'actual' ? 'bar-actual' : 'bar-forecast'} />
+                <path d={roundTop(x, top, bw, H - padB - top)} className={`rise-y ${sel === d.day ? 'bar-selected' : d.kind === 'actual' ? 'bar-actual' : 'bar-forecast'}`} style={{ animationDelay: `${0.25 + i * 0.02}s` }} />
                 {d.kind === 'forecast' && d.p90_usd != null ? (
                   <line x1={x + bw / 2} x2={x + bw / 2} y1={y(d.p90_usd)} y2={top} className="range-line" />
                 ) : null}

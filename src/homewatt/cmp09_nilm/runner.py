@@ -32,6 +32,22 @@ GAP_S = 10.0  # TRS-05-03
 MODEL_DIR = REPO_ROOT / "data" / "models"
 
 
+DEPLOYED_FILE = MODEL_DIR / "deployed.json"  # names the model version every reader and the daily run use
+
+
+def deployed_version() -> str:
+    try:
+        return str(json.loads(DEPLOYED_FILE.read_text())["model_version"])
+    except (FileNotFoundError, KeyError, ValueError):
+        return MODEL_VERSION_DEPLOY
+
+
+def set_deployed(version: str, reason: str) -> None:
+    DEPLOYED_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DEPLOYED_FILE.write_text(json.dumps({"model_version": version, "reason": reason,
+                                         "set_at": pd.Timestamp.now(tz="UTC").isoformat()}, indent=1))
+
+
 def model_path(version: str = MODEL_VERSION_DEPLOY) -> Path:
     return MODEL_DIR / f"{version}.json"
 
@@ -47,8 +63,14 @@ def save_model(model: DeployedCO, path: Path, provenance: dict) -> None:
     path.write_text(json.dumps(doc, indent=2))
 
 
-def load_model(path: Path | None = None) -> DeployedCO:
-    doc = json.loads((path or model_path()).read_text())
+def load_model(path: Path | None = None):
+    """The deployed model (deployed.json), or the one at `path`: a DeployedCO or an S2P."""
+    path = path or model_path(deployed_version())
+    doc = json.loads(path.read_text())
+    if doc.get("kind") == "seq2point":
+        from homewatt.cmp09_nilm.s2p import S2P
+
+        return S2P.load(path)
     states = []
     for s in doc["states"]:
         w = np.asarray(s["watts"], float)
@@ -79,7 +101,7 @@ def minute_means(ts: pd.Series, est: pd.DataFrame, agg_w: np.ndarray, gaps: list
     return means
 
 
-def run_day(client, household_id: str, start: datetime, end: datetime, model: DeployedCO | None = None) -> dict:
+def run_day(client, household_id: str, start: datetime, end: datetime, model=None) -> dict:
     """Disaggregate [start, end) from the store and write 60 s nilm rows. Returns a small report."""
     from homewatt.cmp07_raw_store.reader import read_gaps, read_window
     from homewatt.cmp08_appliance_store.writer import AppliancePowerWriter
@@ -110,4 +132,4 @@ def fit_provenance(library_dir: Path, hvac_source: str) -> dict:
             "note": "power only; hvac state from synthesized data (TRS-09-09); baseload estimated per window"}
 
 
-__all__ = ["PERIOD_S", "fit_provenance", "load_model", "minute_means", "model_path", "run_day", "save_model"]
+__all__ = ["PERIOD_S", "deployed_version", "fit_provenance", "load_model", "set_deployed", "minute_means", "model_path", "run_day", "save_model"]

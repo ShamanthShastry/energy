@@ -23,6 +23,8 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "needs_library" in item.keywords and not (LIBRARY / "split.json").exists():
             item.add_marker(skip_lib)
+        if "needs_torch" in item.keywords and not os.environ.get("HOMEWATT_TEST_TORCH"):
+            item.add_marker(pytest.mark.skip(reason="set HOMEWATT_TEST_TORCH=1 and run tests/cmp09 alone (torch + LightGBM crash together)"))
         if "needs_db" in item.keywords and not os.environ.get("HOMEWATT_TEST_DB"):
             item.add_marker(skip_db)
 

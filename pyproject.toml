@@ -38,6 +38,7 @@ testpaths = ["tests"]
 markers = [
   "needs_library: requires data/library built by `homewatt cmp00 build`",
   "needs_db: requires the owner token and the published SpacetimeDB database (HOMEWATT_TEST_DB=1)",
+  "needs_torch: trains a seq2point net with PyTorch; run on its own (HOMEWATT_TEST_TORCH=1) because torch and LightGBM crash one macOS process together",
 ]
 
 [tool.ruff]

@@ -9,7 +9,7 @@ export function SavingsTab({ s }: { s: Savings | null }) {
   return (
     <div className="stack">
       <Card id="savings" title="Money actually saved" subtitle="Measured a week after each change, against what the forecast said would have happened.">
-        <div className="hero">{s.verified_total_display}</div>
+        <div className="stat"><div className="hero green">{s.verified_total_display}</div><div className="caption">Verified so far</div></div>
         <p className="muted">Changes you took were expected to save {s.promised_total_display} over their weeks.</p>
       </Card>
       <Card id="history" title="What happened to each suggestion">

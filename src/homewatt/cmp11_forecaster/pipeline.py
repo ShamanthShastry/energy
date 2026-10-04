@@ -26,8 +26,12 @@ def preferred_hourly(hourly: pd.DataFrame) -> pd.DataFrame:
     """One row per (appliance, bucket): plug > nilm > sim (v0.12); latest model_version within a source."""
     if hourly.empty:
         return hourly
+    from homewatt.cmp09_nilm.runner import deployed_version
+
     pref = {s: i for i, s in enumerate(SOURCE_PREFERENCE)}
-    h = hourly.assign(_p=hourly["source"].map(pref)).sort_values(["appliance_id", "bucket_us", "_p", "model_version"], ascending=[True, True, True, False])
+    dep = deployed_version()  # the deployed splitter's rows first among nilm versions (data/models/deployed.json)
+    h = hourly.assign(_p=hourly["source"].map(pref), _d=~((hourly["source"] == "nilm") & (hourly["model_version"] == dep)))
+    h = h.sort_values(["appliance_id", "bucket_us", "_p", "_d", "model_version"], ascending=[True, True, True, True, False]).drop(columns="_d")
     return h.drop_duplicates(["appliance_id", "bucket_us"], keep="first").drop(columns="_p")
 
 

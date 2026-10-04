@@ -100,3 +100,58 @@ def run(
     for day in pd.date_range(pd.Timestamp(start, tz=tz), pd.Timestamp(end, tz=tz), freq="D", inclusive="left"):
         rep = run_day(c, household, day.tz_convert("UTC"), (day + pd.Timedelta(days=1)).tz_convert("UTC"), model)
         typer.echo(json.dumps({"day": str(day.date()), **rep}))
+
+
+@app.command("s2p-train")
+def s2p_train(
+    timeline: str = typer.Option("data/synthetic/demo/timeline", help="synthetic timeline used for extra training days and hvac"),
+    synth_days: int = typer.Option(14, help="first N synthetic days train; the rest score hvac (time-ordered)"),
+    epochs: int = typer.Option(8),
+    store: bool = typer.Option(True, help="write held-out metrics to model_metric (TRS-09-05)"),
+):
+    """Train seq2point (power + harmonics) and its power-only ablation; score both next to co-v2.1."""
+    import json as _json
+    import logging
+
+    import pandas as pd
+
+    from homewatt.cmp09_nilm import s2p
+    from homewatt.config import REPO_ROOT
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    s = get_settings()
+    split = _json.loads((s.library_dir / "split.json").read_text())
+    tdir = REPO_ROOT / timeline
+    train_set = s2p.real_sessions(s.library_dir, split["train"]) + s2p.synthetic_days(tdir, 0, synth_days)
+    test_real = s2p.real_sessions(s.library_dir, split["test"])
+    test_syn = s2p.synthetic_days(tdir, synth_days, 28)
+    tables, rows = {}, []
+    for feats, version in ((s2p.FEATS, s2p.MODEL_VERSION), (s2p.FEATS_POWER, s2p.MODEL_VERSION_POWER)):
+        m = s2p.train(train_set, feats, version, epochs=epochs)
+        res = s2p.evaluate(m, test_real, test_syn)
+        t = res.groupby(["appliance", "synthetic"])[["mae_w", "f1_10w", "energy_ratio"]].mean()
+        tables[version] = t
+        m.save(REPO_ROOT / "data" / "models" / version, {"train_sessions": split["train"], "synthetic_train_days": f"{timeline} days 1-{synth_days}",
+                                                          "epochs": epochs, "trained_at": pd.Timestamp.now(tz="UTC").isoformat()})
+        for (app_type, synthetic), r in t.iterrows():
+            for metric in ("mae_w", "f1_10w", "energy_ratio"):
+                v = float(r[metric])
+                rows.append({"model_version": version, "component": "cmp09_nilm", "appliance_type": str(app_type), "metric": metric,
+                             "value": v if v == v else -1.0, "synthetic": bool(synthetic),
+                             "eval_sessions": f"synthetic days {synth_days + 1}+" if synthetic else ",".join(split["test"])})
+    typer.echo(pd.concat(tables, axis=1).round(3).to_string())
+    if store:
+        from homewatt.spacetime import SpacetimeClient
+
+        SpacetimeClient.from_settings().call("write_model_metrics", rows)
+        typer.echo(f"wrote {len(rows)} metric rows")
+
+
+@app.command()
+def deploy(version: str = typer.Argument(..., help="model version to serve, e.g. s2p-v1 or co-v2.1"), reason: str = typer.Option(...)):
+    """Point data/models/deployed.json at a model; readers and the daily run follow it."""
+    from homewatt.cmp09_nilm.runner import load_model, model_path, set_deployed
+
+    load_model(model_path(version))  # refuse a version that isn't on disk
+    set_deployed(version, reason)
+    typer.echo(f"deployed {version}")

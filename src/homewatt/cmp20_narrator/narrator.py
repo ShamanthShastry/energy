@@ -161,10 +161,13 @@ def input_sha(record: dict) -> str:
     return hashlib.sha256((json.dumps(record, sort_keys=True) + system_prompt()).encode()).hexdigest()[:16]
 
 
-def run(client, household_id: str, week_id: str, backend: NarratorBackend | None) -> list[Statement]:
-    """TRS-20-06: narrate the week's batch when its records changed (new or re-priced actions)."""
+def run(client, household_id: str, week_id: str, backend: NarratorBackend | None, closed_too: bool = False) -> list[Statement]:
+    """TRS-20-06: narrate the week's batch when its records changed (new or re-priced actions).
+    closed_too re-narrates a past week's settled actions as well (one-off, after a wording change;
+    the old statements stay, superseded, TRS-20-08)."""
     acts = client.sql(f"SELECT * FROM action WHERE household_id = '{household_id}' AND week_id = '{week_id}'")
-    acts = acts[acts["status"].isin(["proposed", "accepted"])] if len(acts) else acts
+    if not closed_too:
+        acts = acts[acts["status"].isin(["proposed", "accepted"])] if len(acts) else acts
     if acts.empty:
         return []
     apps = client.sql(f"SELECT appliance_id, label FROM appliance WHERE household_id = '{household_id}'")

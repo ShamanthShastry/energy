@@ -10,8 +10,8 @@ export function Biggest({ a, onGo }: { a: Actions | null; onGo: () => void }) {
         <div className="biggest">
           <p className="biggest-sentence">{b.sentence}</p>
           <div className="biggest-figures">
-            <div><span className="big-num">{b.saving_month_display}</span> <span className="muted">a month</span></div>
-            <div><span className="mid-num">{b.kg_month_display}</span> <span className="muted">kg of CO₂ a month</span></div>
+            <div className="stat"><div className="big-num">{b.saving_month_display}</div><div className="caption">A month</div></div>
+            <div className="stat"><div className="mid-num">{b.kg_month_display} kg</div><div className="caption">CO₂ a month</div></div>
           </div>
           <button className="link-btn" onClick={onGo}>See all suggestions →</button>
         </div>

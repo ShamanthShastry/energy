@@ -73,8 +73,8 @@ class Ctx:
 
 
 def latest_nilm(h: pd.DataFrame) -> tuple[pd.DataFrame, str]:
-    """nilm rows of the deployed splitter version, else the last version present (TRS-08-06)."""
-    from homewatt.cmp09_nilm.co import MODEL_VERSION_DEPLOY
+    """nilm rows of the deployed splitter version (data/models/deployed.json), else the last one present (TRS-08-06)."""
+    from homewatt.cmp09_nilm.runner import deployed_version
 
     if h.empty:
         return h, ""
@@ -82,7 +82,8 @@ def latest_nilm(h: pd.DataFrame) -> tuple[pd.DataFrame, str]:
     if n.empty:
         return n, ""
     versions = set(n["model_version"])
-    mv = MODEL_VERSION_DEPLOY if MODEL_VERSION_DEPLOY in versions else sorted(versions)[-1]
+    dep = deployed_version()
+    mv = dep if dep in versions else sorted(versions)[-1]
     return n[n["model_version"] == mv], mv
 
 
@@ -222,9 +223,9 @@ COMPARE_LABEL = {"sim": "Simulated feed (the practice home's answer key)", "nilm
 def _typical_on_w() -> dict[str, float]:
     """Each appliance type's learned on-level in the deployed splitter: its typical draw (TRS-16-06)."""
     try:
-        from homewatt.cmp09_nilm.runner import load_model
+        from homewatt.cmp09_nilm.runner import load_model, model_path
 
-        return {str(st.appliance): float(st.watts[-1]) for st in load_model().states}
+        return {str(st.appliance): float(st.watts[-1]) for st in load_model(model_path("co-v2.1")).states}
     except (FileNotFoundError, KeyError, ValueError):
         return {}
 

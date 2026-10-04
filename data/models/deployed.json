@@ -1,0 +1,5 @@
+{
+ "model_version": "s2p-v3",
+ "reason": "OI-03: seq2point v3 beats co-v2.1 on laptop, water heater, fridge, screen on held-out sessions (decision of S. Shastry 2026-10-04)",
+ "set_at": "2026-10-04T08:54:10.344893+00:00"
+}

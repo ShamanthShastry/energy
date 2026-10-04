@@ -3,7 +3,7 @@
 **Date:** 2026-10-04
 **From:** Claude Code build session (Shamanth + Claude)
 **To:** the next Claude Code session
-**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.12** (OI-13, OI-11, sign-in and estimate-first built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
+**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.13** (OI-13, OI-11, sign-in, estimate-first, Tesla-style restyle and seq2point built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
 
 Read this file, then `TRS-HOMEWATT-001.md` in full, then `CLAUDE.md`, before changing anything.
 
@@ -75,7 +75,7 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 | CMP-04 tariff | `cmp04_tariff`, `config/tariffs/dte_d1_11.yaml` | Coverage check names missing/overlapping hours. |
 | CMP-05/07/08 ingestion, raw, appliance store | `cmp05_ingest`, `cmp07_raw_store`, `cmp08_appliance_store` | Hourly/daily rollups maintained by the `write_appliance_power` reducer. |
 | CMP-06 practice home | `cmp06_synth`, `config/profiles/demo_household.yaml`, `config/faults/fridge_day12.yaml` | Seeded, byte-reproducible; `behaviour.py` = simulated household following accepted suggestions. |
-| CMP-09 splitter | `cmp09_nilm/co.py`, `runner.py`, `data/models/co-v2.1.json` | Combinatorial optimisation. Deployed co-v2.1 (power only + synthetic hvac state + per-day baseload estimate) writes 60 s `nilm` rows each replayed day (TRS-09-10). `homewatt cmp09 fit` refits and stores scores; `homewatt cmp09 run --start --end` backfills. |
+| CMP-09 splitter | `cmp09_nilm/s2p.py` (seq2point), `co.py` (CO baseline), `runner.py`, `data/models/` | Deployed: `s2p-v3` (`deployed.json` names it; `homewatt cmp09 deploy <version>` switches). Train with `homewatt cmp09 s2p-train` (PyTorch, MPS, ~6 min for both variants); inference is numpy from `.npz`, never torch. `homewatt cmp09 run --start --end` backfills 60 s `nilm` rows; `demo advance` runs it daily. co-v2.1 stays as the scored baseline. |
 | CMP-11 predictor | `cmp11_forecaster` | LightGBM vs seasonal-naive, time-ordered 80/20; naive if it doesn't win or < 14 days. |
 | CMP-12 fridge detector | `cmp12_anomaly` | Median/MAD z, two consecutive days, baseline skips anomalous days; fridge only in V1. |
 | CMP-13 savings calculator | `cmp13_simulator`, `config/atl.yaml` | Weekly batch of 3, stable within the week; dismissed slot refilled; suppression after 3 ignored weeks. Searches can be a grid (v0.11): precool picks its length (1–3 h) and depth (0.5–2 °C) each week, priced with the thermostat model. |
@@ -120,7 +120,7 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 
 - Verified savings in the demo measure a simulated household that always follows what it accepts.
 - The weather "forecast" in the replay is what actually happened (perfect foresight).
-- The splitter is weak on small loads (co-v2.1 held-out F1: laptop 0.26, screen 0.07, straightener 0.63); its baseload estimate absorbs loads that stay on all session. seq2point is not built (OI-03).
+- The splitter (s2p-v3) is weak on short-burst loads with few training examples: iron F1 0.89, straightener 0.45. Laptop 0.99 and water heater 1.00 are its wins; screen 0.54.
 - Only the fridge is watched for faults in V1.
 - Spike narration is not built (no surface for it since voice was removed).
 
@@ -136,6 +136,7 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 - **The in-app preview launcher can't read `~/Documents`** (macOS permission). Run servers with Bash in the background and open `http://127.0.0.1:<port>` in the browser pane. For files outside the project, a launch config running `/usr/bin/python3 -I -c ...` with `os.chdir` to a /tmp path works.
 - **zsh does not word-split `$var`** in `for x in $var`; use Python or arrays for loops over IDs.
 - **LightGBM on macOS** needs `libomp` from Homebrew.
+- **Never import torch and lightgbm in one process on macOS**: both bundle OpenMP and the process segfaults ("Python quit unexpectedly"). Training is its own CLI; inference is numpy; the `needs_torch` tests run alone with `HOMEWATT_TEST_TORCH=1 .venv/bin/pytest tests/cmp09`.
 
 ## Housekeeping still owed
 

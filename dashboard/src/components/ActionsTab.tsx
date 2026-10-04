@@ -63,7 +63,7 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
       {t?.present ? (
         <Card id="thermostat" title="Thermostat" aside={t.simulated ? <Chip tone="sim" icon="◌">Simulated device</Chip> : undefined}>
           <div className="thermo">
-            <div><span className="big-num">{t.setpoint_c}</span> <span className="muted">°C cooling setpoint</span></div>
+            <div className="stat"><div className="stat-value green">{t.setpoint_c}<span className="unit">°C</span></div><div className="caption">Cooling setpoint</div></div>
             {t.last_change ? (
               <div className="small">
                 {t.last_change.result === 'failed'

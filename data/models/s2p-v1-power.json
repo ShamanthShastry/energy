@@ -1,0 +1,53 @@
+{
+ "model_version": "s2p-v1-power",
+ "kind": "seq2point",
+ "feats": [
+  "p_active_w"
+ ],
+ "appliances": [
+  "fridge",
+  "water_heater",
+  "hair_dryer",
+  "straightener",
+  "iron",
+  "laptop",
+  "screen",
+  "hvac"
+ ],
+ "mean": [
+  684.4107055664062
+ ],
+ "std": [
+  1158.5950927734375
+ ],
+ "scale": [
+  100.0,
+  100.0,
+  100.0,
+  100.0,
+  100.0,
+  100.0,
+  100.0,
+  100.0
+ ],
+ "window": 299,
+ "provenance": {
+  "train_sessions": [
+   "05-12",
+   "05-14",
+   "05-15",
+   "05-19",
+   "05-20",
+   "05-22",
+   "05-23",
+   "06-02",
+   "06-16",
+   "06-17",
+   "06-18",
+   "06-20"
+  ],
+  "synthetic_train_days": "data/synthetic/demo/timeline days 1-14",
+  "epochs": 8,
+  "trained_at": "2026-10-04T08:31:44.489633+00:00"
+ }
+}

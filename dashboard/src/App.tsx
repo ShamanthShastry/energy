@@ -8,7 +8,7 @@ import { Health } from './components/Health';
 import { MonthSummary } from './components/MonthSummary';
 import { SavingsTab } from './components/SavingsTab';
 import { Spikes } from './components/Spikes';
-import { Chip, Stale } from './components/ui';
+import { Stale } from './components/ui';
 
 type Tab = 'home' | 'actions' | 'savings';
 const TABS: { id: Tab; label: string }[] = [{ id: 'home', label: 'Home' }, { id: 'actions', label: 'Actions' }, { id: 'savings', label: 'Savings' }];
@@ -54,15 +54,16 @@ function Dashboard({ me, onOut }: { me: Me; onOut: () => void }) {
       <header className="top">
         <div className="brand">
           <span className="logo" aria-hidden="true">⌁</span>
-          <span>HomeWatt</span>
+          <span>Synergy</span>
         </div>
         <div className="top-meta">
-          {meta.data ? <span className="clock">{meta.data.now_label}</span> : null}
-          {meta.data?.simulated_feed ? <Chip tone="sim" icon="◌">Simulated feed</Chip> : null}
           <span className="small muted">{me.name}</span>
           <button className="btn btn-quiet" onClick={onOut}>Log out</button>
         </div>
       </header>
+      <div className="home-head">
+        <h1>{me.name.split(' ')[0]}'s home</h1>
+      </div>
       <nav className="tabs" role="tablist" aria-label="Sections">
         {TABS.map(t => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
@@ -87,7 +88,7 @@ function Dashboard({ me, onOut }: { me: Me; onOut: () => void }) {
         )}
       </main>
       <footer className="foot small muted">
-        {meta.data ? <>{meta.data.tariff_name} · {meta.data.weather_note} Practice-home data from the Dinar et al. NILM dataset.</> : null}
+        {meta.data ? <>{meta.data.simulated_feed ? 'Simulated feed · ' : ''}{meta.data.tariff_name} · {meta.data.weather_note} Practice-home data from the Dinar et al. NILM dataset.</> : null}
       </footer>
     </div>
   );

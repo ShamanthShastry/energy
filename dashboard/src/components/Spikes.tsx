@@ -40,7 +40,7 @@ export function Spikes({ s }: { s: S | null }) {
             return (
               <g key={d.day} className="mark" tabIndex={0} {...tip.bind([d.label, `About ${d.p50_display}, up to ${d.p90_display}`, ...(d.spike ? [`Higher than usual: mostly ${d.driver_label}`] : [])])}>
                 <rect x={x - 4} y={padT} width={bw + 8} height={H - padB - padT} fill="transparent" />
-                <path d={roundTop(x, top, bw, H - padB - top)} className={d.spike ? 'bar-spike' : 'bar-forecast'} />
+                <path d={roundTop(x, top, bw, H - padB - top)} className={`rise-y ${d.spike ? 'bar-spike' : 'bar-forecast'}`} style={{ animationDelay: `${0.35 + i * 0.05}s` }} />
                 <line x1={x + bw / 2} x2={x + bw / 2} y1={y(d.p90_usd)} y2={top} className={d.spike ? 'range-line warn' : 'range-line'} />
                 {d.spike ? <text x={x + bw / 2} y={y(d.p90_usd) - 5} className="axis strong" textAnchor="middle">high</text> : null}
                 <text x={x + bw / 2} y={H - 6} className="axis" textAnchor="middle">{d.label.split(' ')[0]}</text>

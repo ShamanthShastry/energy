@@ -8,7 +8,7 @@ import { Card, Chip, Empty } from './ui';
 export function Breakdown({ a }: { a: Appliances | null }) {
   if (!a) return <Card title="Where the power goes"><Empty>Loading…</Empty></Card>;
   return (
-    <Card id="breakdown" title="Where the power goes" subtitle={`This month so far · ${a.total_display} · updated ${a.as_of}`}
+    <Card id="breakdown" title="Where the power goes" subtitle={`This month so far · ${a.total_display}`}
       aside={<Chip tone="green">{a.source_label === 'estimated' && a.nilm_model_version ? `Estimated · ${a.nilm_model_version}` : a.source_label}</Chip>}>
       <ApplianceRows items={a.items} extra={i => {
         const m = i as ApplianceItem;
@@ -25,8 +25,8 @@ export function ApplianceRows({ items, extra }: { items: ApplianceRow[]; extra?:
   if (!items.length) return <Empty>No usage recorded.</Empty>;
   return (
     <ul className="bars">
-      {items.map(i => (
-        <li key={i.appliance_id}>
+      {items.map((i, n) => (
+        <li key={i.appliance_id} className="rise" style={{ animationDelay: `${0.2 + n * 0.05}s` }}>
           <button className="bar-row" aria-expanded={open === i.appliance_id} onClick={() => setOpen(open === i.appliance_id ? null : i.appliance_id)}>
             <span className="bar-label">{i.label}</span>
             <span className="bar-track"><span className="bar-fill" style={{ width: `${(i.share_pct / max) * 100}%` }} /></span>

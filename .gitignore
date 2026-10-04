@@ -37,3 +37,4 @@ spacetimedb/node_modules/
 !data/models/
 !data/models/*.json
 data/.session_secret
+!data/models/*.pt
