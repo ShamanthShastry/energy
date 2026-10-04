@@ -45,7 +45,7 @@ def plain_change(assumption_text: str) -> str:
     t = assumption_text.strip()
     if t.lower().startswith("assumes "):
         t = t[len("assumes "):]
-    t = t.replace(" °C", " degrees Celsius").replace("°C", " degrees Celsius").replace(" °F", " degrees Fahrenheit").replace("°F", " degrees Fahrenheit")
+    t = t.replace(" °C", " degrees").replace("°C", " degrees").replace(" °F", " degrees Fahrenheit").replace("°F", " degrees Fahrenheit")
     t = re.sub(r"(?<![\d.])1 degrees", "1 degree", t)
     return t[:1].upper() + t[1:]
 
@@ -66,3 +66,10 @@ def hour12(h: int) -> str:
     """Local hour as people say it: 2 pm, 12 am."""
     h = int(h) % 24
     return f"{(h % 12) or 12} {'am' if h < 12 else 'pm'}"
+
+
+def hour_range(a: int, b: int) -> str:
+    """'1 to 3 pm', '11 am to 1 pm': a local hour span as people say it."""
+    a, b = int(a) % 24, int(b) % 24
+    same_half = (a < 12) == (b < 12) and b != 0
+    return f"{(a % 12) or 12} to {hour12(b)}" if same_half else f"{hour12(a)} to {hour12(b)}"

@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.11 — DRAFT |
+| Version | 0.11.1 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -1128,7 +1128,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-20-04 — Output shall be structured: {action\_id, text}. A response that is not valid against the schema shall be retried once with the schema error, then discarded.
 - TRS-20-05 — Each statement shall be at most 30 words and shall be readable aloud without symbols or abbreviations.
 - TRS-20-06 — The narrator shall run only when CMP-13 produces new actions or CMP-15 reports a new spike; never on a schedule of its own. V1 narrates actions only, re-narrating when an action's structured input changes; spike statements have no surface since the Voice tab was removed (v0.4) and are not built.
-- TRS-20-07 — Model access shall go through a NarratorBackend protocol with one method, so that the provider can be swapped without touching any other component.
+- TRS-20-07 — Model access shall go through a NarratorBackend protocol with one method, so that the provider can be swapped without touching any other component. The instructions live in `config/narrator.md`; editing them re-narrates every open action (v0.11.1). Each statement says the concrete change (device, days, times, setting) and then the monthly saving; carbon and history are shown elsewhere on the tab.
 - TRS-20-08 — Every statement shall carry model\_version and shall be retained; a superseded statement is marked superseded, never deleted.
 
 * TRS-20-09 — The narrator may reference the outcome history in a statement ("last week's dryer change saved 8.20") and shall use it to choose tone and framing only. TRS-20-02 and TRS-20-03 apply to history figures as to all others: every number verbatim from the input, no action originated.
@@ -1234,12 +1234,12 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 
 | action\_type | shape | applies\_to | params / search | Flags | Assumption |
 | --- | --- | --- | --- | --- | --- |
-| shift\_out\_of\_peak | shift | water\_heater, hair\_dryer, straightener, iron | from: tariff peak hours; search to\_hour 19–23 step 1 | requires\_tou | assumes all peak-hour use of {appliance} moves to {to\_hour}:00 or later |
-| hvac\_setpoint\_away | setpoint | hvac | search delta\_c 1–3 step 1; sign = +1 in cooling mode | actuator: thermostat | assumes the thermostat is set {delta\_c} °C warmer for the week |
-| hvac\_precool | setpoint (schedule, v0.11) | hvac | schedule: precool; peak\_warm\_c 2, weekdays; peak hours from the tariff; search pre\_hours 1–3 step 1 and pre\_cool\_c 0.5–2 step 0.5 | requires\_tou, actuator: thermostat | assumes the thermostat runs {pre\_cool\_c} °C cooler from {pre\_start}:00 to {peak\_start}:00 and {peak\_warm\_c} °C warmer until {peak\_end}:00 on weekdays this week |
-| water\_heater\_setpoint | trim | water\_heater | factor 0.90 |  | assumes the water heater is set to 49 °C (120 °F) |
-| trim\_standby | trim | laptop, screen, lamp | factor 0.85 |  | assumes {appliance} is switched off at the wall when not in use |
-| fridge\_service | maintenance | fridge | factor 0.85 | requires\_alert | assumes the fridge returns to its usual cycle after the coils are cleaned or the door seal fixed |
+| shift\_out\_of\_peak | shift | water\_heater, hair\_dryer, straightener, iron | from: tariff peak hours; search to\_hour 19–23 step 1 | requires\_tou | assumes weekday {appliance} use moves from {peak\_range} to after {to\_hour\_12} |
+| hvac\_setpoint\_away | setpoint | hvac | search delta\_c 1–3 step 1; sign = +1 in cooling mode | actuator: thermostat | assumes the thermostat is set {delta\_c} °C warmer, to {target\_setpoint\_c} °C, all week |
+| hvac\_precool | setpoint (schedule, v0.11) | hvac | schedule: precool; peak\_warm\_c 2, weekdays; peak hours from the tariff; search pre\_hours 1–3 step 1 and pre\_cool\_c 0.5–2 step 0.5 | requires\_tou, actuator: thermostat | assumes on weekdays the thermostat cools {pre\_cool\_c} °C from {pre\_range}, then sits {peak\_warm\_c} °C warmer from {peak\_range} |
+| water\_heater\_setpoint | trim | water\_heater | factor 0.90 |  | assumes the water heater is turned down to 49 °C (120 °F) |
+| trim\_standby | trim | laptop, screen, lamp | factor 0.85 |  | assumes the {appliance} is switched off at the wall when not in use |
+| fridge\_service | maintenance | fridge | factor 0.85 | requires\_alert | assumes the fridge's coils are cleaned or its door seal fixed, so it draws its usual power again |
 
 ### A.3 Rules
 
@@ -1268,3 +1268,4 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | 0.9.1 | 2026-10-04 | Claude (for S. Shastry) | Status notes only, no requirement change: harmonics ablation result (TRS-09-01), narrator fallback retried on the next run (TRS-20-02), OI-03 CO baseline results, OI-09 key confirmed. Flowchart `docs/flowchart.mmd` redrawn to match. Not baselined. |
 | 0.10 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-13 resolved, NILM output stored at 60 s means. New TRS-09-10 (deployed model co-v2.1: power-only CO, synthetic hvac state, per-day baseload estimate; stored output and its held-out results); §4.2 and CMP-08 error handling restated for 60 s rows; CMP-09 gap rule restated per minute. Not baselined. |
 | 0.11 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-11 resolved. TRS-SYS-03 and §1.3 reworded so a tap may install a bounded, week-long schedule on the device; new TRS-19-10 to 19-12 (precool schedule, expiry at week end, logging and undo); TRS-19-06/07, TRS-13-01, TRS-13-12 (search over several parameters, so precool adapts to each week), CMP-19 inputs and outputs, §4.2, Annex A (schema, hvac\_precool row, A.3) restated. Priced with the thermostat model, a fixed 2 h × 2 °C precool fell below the floor at a 26 °C setpoint; the search picks the week's best. Not baselined. |
+| 0.11.1 | 2026-10-04 | Claude (for S. Shastry) | Wording, at S. Shastry's request: Annex A assumption sentences rewritten to state the concrete change with 12-hour times (placeholders {peak\_range}, {pre\_range}, {to\_hour\_12}); narrator instructions moved to `config/narrator.md` with a fixed shape (change, then monthly saving) (TRS-20-07). No behaviour change. Not baselined. |

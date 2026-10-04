@@ -48,7 +48,7 @@ def test_trs_13_verification_shift_saving_equals_kwh_times_rate_gap():
     assert shift.saving_usd == pytest.approx(expected, rel=1e-6)
     assert shift.params["to_hour"] == 19  # first value of the search range; all off-peak hours price equally
     assert shift.counterfactual.kwh == pytest.approx(shift.baseline.kwh)  # energy-preserving
-    assert shift.surfaced and "19:00 or later" in shift.assumption_text
+    assert shift.surfaced and "from 3 to 7 pm to after 7 pm" in shift.assumption_text
 
 
 def test_trs_13_05_flat_tariff_prices_shift_at_zero_and_does_not_surface():
@@ -145,7 +145,8 @@ def test_annex_a3_precool_is_priced_with_the_thermostat_model_running_the_schedu
     kwh = fc.set_index("ts")["kwh_p50"]
     cf = shapes.schedule(kwh, weather, ThermostatParams(), 24.0, DTE, 15, 19, int(p["pre_hours"]), p["pre_cool_c"], p["peak_warm_c"], 18.0, 27.0, 2.0)
     assert pre.saving_usd == pytest.approx(cost(kwh, DTE).usd - cost(cf, DTE).usd, abs=1e-6)  # TRS-13-02
-    assert "on weekdays this week" in pre.assumption_text and "from 1" in pre.assumption_text
+    assert pre.assumption_text.startswith("assumes on weekdays the thermostat cools")
+    assert f"to 3 pm, then sits {int(p['peak_warm_c'])} °C warmer from 3 to 7 pm" in pre.assumption_text
 
 
 def test_trs_13_12_precool_searches_length_and_depth_together_and_keeps_the_best():

@@ -57,7 +57,7 @@ def test_trs_20_03_one_statement_per_action_and_no_invented_ones():
     recs = [record_for(act("a1"), LABELS, False, []), record_for(act("a2", "wh", assumption="assumes the water heater is set to 49 °C (120 °F)"), LABELS, False, [])]
     st = narrate(FakeBackend([reply(("a1", "Run the dryer after 21:00 to save 9.10 dollars a month."), ("zzz", "Buy solar panels."))]), recs, list(LABELS.values()))
     assert [s.action_id for s in st] == ["a1", "a2"] and st[0].narrated and not st[1].narrated
-    assert "degrees Celsius" in recs[1]["change"] and "°" not in recs[1]["change"]
+    assert " degrees" in recs[1]["change"] and "°" not in recs[1]["change"]
 
 
 def test_trs_20_01_narrator_imports_nothing_from_tariff_forecast_or_rollups():
@@ -72,3 +72,15 @@ def test_trs_20_07_backend_protocol_has_one_method():
 
     methods = [m for m in vars(NarratorBackend) if not m.startswith("_") and callable(getattr(NarratorBackend, m))]
     assert methods == ["generate"]
+
+
+def test_trs_20_06_prompt_lives_in_config_and_editing_it_re_narrates(tmp_path, monkeypatch):
+    from homewatt.cmp20_narrator import narrator
+
+    assert narrator.PROMPT_PATH.name == "narrator.md" and "Saves" in narrator.system_prompt()
+    rec = {"action_id": "a", "change": "x"}
+    before = narrator.input_sha(rec)
+    alt = tmp_path / "narrator.md"
+    alt.write_text("different instructions")
+    monkeypatch.setattr(narrator, "PROMPT_PATH", alt)
+    assert narrator.input_sha(rec) != before

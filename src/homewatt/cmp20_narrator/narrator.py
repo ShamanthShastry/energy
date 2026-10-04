@@ -19,6 +19,7 @@ import uuid
 from dataclasses import dataclass
 
 from homewatt.cmp20_narrator.backend import BackendUnavailable, NarratorBackend
+from homewatt.config import REPO_ROOT
 from homewatt.display import kg, money, per_month, plain_change
 
 log = logging.getLogger(__name__)
@@ -42,17 +43,14 @@ SCHEMA = {
     "required": ["statements"],
 }
 
-SYSTEM = """You write one short sentence per suggested household energy change, the way one family
-member would say it to another. Rules, all mandatory:
-- One statement per input action, keyed by its action_id. Do not add, merge, or invent actions.
-- Use only facts in that action's record. Mention only that action's appliance.
-- Copy numbers exactly as written in the record (same digits, same decimals). Never round,
-  convert, add, or compute a number. Say "dollars a month" and "kilograms of carbon a month"
-  in words; never use symbols such as $ % or degree signs, or abbreviations such as CO2 or kWh.
-- At most 25 words (hard limit 30). Plain, warm, specific. No exclamation marks.
-- If first_week is true you may say the app is still learning what works for this household.
-- You may mention last week's outcome from history for the same appliance, using its numbers
-  exactly. Never say or imply that an action with status not_verified saved money."""
+PROMPT_PATH = REPO_ROOT / "config" / "narrator.md"  # Gemini's instructions; edit the file, not this module
+
+
+def system_prompt() -> str:
+    return PROMPT_PATH.read_text()
+
+
+SYSTEM = system_prompt()
 
 
 @dataclass
@@ -131,7 +129,7 @@ def narrate(backend: NarratorBackend, records: list[dict], all_labels: list[str]
     for attempt in range(2):  # TRS-20-04: one retry with the schema error
         prompt = user if err is None else f"{user}\n\nYour previous reply was rejected: {err}. Reply again with valid JSON."
         try:
-            raw = backend.generate(SYSTEM, prompt, SCHEMA)
+            raw = backend.generate(system_prompt(), prompt, SCHEMA)
             data = json.loads(raw)
             items = data["statements"]
             if not isinstance(items, list) or not all(isinstance(i, dict) and "action_id" in i and "text" in i for i in items):
@@ -159,7 +157,8 @@ def narrate(backend: NarratorBackend, records: list[dict], all_labels: list[str]
 
 
 def input_sha(record: dict) -> str:
-    return hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:16]
+    """Record plus prompt: editing config/narrator.md re-narrates every open action (TRS-20-06)."""
+    return hashlib.sha256((json.dumps(record, sort_keys=True) + system_prompt()).encode()).hexdigest()[:16]
 
 
 def run(client, household_id: str, week_id: str, backend: NarratorBackend | None) -> list[Statement]:

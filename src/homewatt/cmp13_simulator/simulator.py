@@ -85,6 +85,9 @@ def _price(template: Template, app: ApplianceInfo, kwh: pd.Series, tariff: Tarif
                 return None
             p["peak_start"], p["peak_end"] = win
             return shapes.shift(kwh, tariff, to="pre_peak_2h"), p
+        win = next((w for w in (tariff.peak_window(d) for d in pd.DatetimeIndex(kwh.index).tz_convert(tariff.tz).date) if w), None)
+        if win is not None:
+            p["peak_start"], p["peak_end"] = win
         return shapes.shift(kwh, tariff, to_hour=int(p["to_hour"])), p
     if template.shape == "trim":
         return shapes.trim(kwh, p["factor"]), p
@@ -182,7 +185,16 @@ def rank(actions: list[PricedAction], limit: int = MAX_ACTIONS) -> list[PricedAc
 
 
 def _assume(template: Template, app: ApplianceInfo, params: dict) -> str:
+    from homewatt.display import hour12, hour_range
+
     fmt = {"appliance": app.label, **{k: (int(v) if isinstance(v, float) and float(v).is_integer() else v) for k, v in params.items()}}
+    for k in ("to_hour", "pre_start", "peak_start", "peak_end"):  # times as people say them (v0.11.1)
+        if k in params:
+            fmt[f"{k}_12"] = hour12(params[k])
+    if "pre_start" in params and "peak_start" in params:
+        fmt["pre_range"] = hour_range(params["pre_start"], params["peak_start"])
+    if "peak_start" in params and "peak_end" in params:
+        fmt["peak_range"] = hour_range(params["peak_start"], params["peak_end"])
     try:
         return template.assumption.format(**fmt)
     except KeyError:
