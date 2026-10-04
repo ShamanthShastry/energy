@@ -19,11 +19,11 @@ from homewatt.cmp11_forecaster.model import (
 from homewatt.spacetime import us, us_array
 
 log = logging.getLogger(__name__)
-SOURCE_PREFERENCE = ("plug", "sim", "nilm")  # TRS-08-01 (v0.5)
+SOURCE_PREFERENCE = ("plug", "nilm", "sim")  # TRS-08-01 (v0.12): the splitter estimate before the simulated feed
 
 
 def preferred_hourly(hourly: pd.DataFrame) -> pd.DataFrame:
-    """One row per (appliance, bucket): plug > sim > nilm; latest model_version within a source."""
+    """One row per (appliance, bucket): plug > nilm > sim (v0.12); latest model_version within a source."""
     if hourly.empty:
         return hourly
     pref = {s: i for i, s in enumerate(SOURCE_PREFERENCE)}

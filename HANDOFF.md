@@ -3,7 +3,7 @@
 **Date:** 2026-10-04
 **From:** Claude Code build session (Shamanth + Claude)
 **To:** the next Claude Code session
-**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.11** (OI-13 and OI-11 built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
+**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.12** (OI-13, OI-11, sign-in and estimate-first built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
 
 Read this file, then `TRS-HOMEWATT-001.md` in full, then `CLAUDE.md`, before changing anything.
 
@@ -31,6 +31,12 @@ A household installs one whole-home electrical sensor (2 s samples, power + curr
 | Gemini | Key in `.env` (`GEMINI_API_KEY`, gitignored, mode 600). Works on `generativelanguage.googleapis.com` with the `x-goog-api-key` header and `gemini-2.5-flash`. Not Vertex. |
 | Tests | 167 pass with live tests (`HOMEWATT_TEST_DB=1 .venv/bin/pytest -q`); ~156 offline. Ruff clean; dashboard and module type-check. |
 | Git | Last commit `0181ef1` (Shamanth's). Everything after is uncommitted. Commit only when he asks. |
+
+## v0.12 changes to know
+
+- **Sign-in:** the dashboard opens on sign-up / log-in (`cmp14_onboarding/accounts.py`, private table `user_account`). Every `/api` route except `/api/auth/*` needs the `hw_session` cookie; the signing secret is `HOMEWATT_SESSION_SECRET` or `data/.session_secret` (generated, gitignored). Every account opens `hh-demo`.
+- **Estimate first:** `SOURCE_PREFERENCE` is plug > nilm > sim for the API, forecaster, simulator and verifier; the fault detector keeps sim first (co-v2.1 can't see a fridge drawing more).
+- **Units:** `display.money` returns `$4.56`; narrator sentences use `$` and `°C`.
 
 ## How to run
 

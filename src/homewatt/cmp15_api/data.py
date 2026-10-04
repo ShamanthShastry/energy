@@ -103,7 +103,7 @@ def nice_ticks(max_value: float, n: int = 3) -> list[dict]:
     raw = max_value / n
     mag = 10 ** math.floor(math.log10(raw))
     step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
-    return [{"value": step * i, "display": f"{step * i:,.0f}" if step >= 1 else f"{step * i:,.2f}"} for i in range(1, n + 1)]
+    return [{"value": step * i, "display": f"${step * i:,.0f}" if step >= 1 else f"${step * i:,.2f}"} for i in range(1, n + 1)]
 
 
 def _local_day(ts: pd.Series, tz: str) -> pd.Series:
@@ -207,84 +207,122 @@ def summary(c: Ctx) -> dict:
         "vs_last_month_note": None if vs is not None else f"No data for {lm_start.strftime('%B')}",
         "daily": series,
         "ticks": nice_ticks(ymax),
-        "fixed_charge_note": f"Excludes the {d.money(c.tariff.fixed_usd_per_month)} dollar monthly service charge",
+        "fixed_charge_note": f"Excludes the {d.money(c.tariff.fixed_usd_per_month)} monthly service charge",
     }
 
 
 # ---------------------------------------------------------------- panel 2: appliance breakdown
+# v0.12: every per-appliance view leads with the preferred source (plug, then the splitter's
+# estimate, then the simulated feed; TRS-08-01). The other source is sent as a comparison the
+# dashboard shows only when a row is opened.
+COMPARE_LABEL = {"sim": "Simulated feed (the practice home's answer key)", "nilm": "Splitter estimate"}
+
+
+@lru_cache(maxsize=1)
+def _typical_on_w() -> dict[str, float]:
+    """Each appliance type's learned on-level in the deployed splitter: its typical draw (TRS-16-06)."""
+    try:
+        from homewatt.cmp09_nilm.runner import load_model
+
+        return {str(st.appliance): float(st.watts[-1]) for st in load_model().states}
+    except (FileNotFoundError, KeyError, ValueError):
+        return {}
+
+
+def _nilm_notes(c: Ctx, mv: str) -> dict[str, dict]:
+    if not mv:
+        return {}
+    df = c.client.sql(
+        "SELECT appliance_type, metric, value, eval_sessions, synthetic FROM model_metric "
+        f"WHERE component = 'cmp09_nilm' AND model_version = '{mv}'"
+    )
+    return {r["appliance_type"]: r for r in df.to_dict("records") if r["metric"] == "mae_w"} if len(df) else {}
+
+
+def _error_note(t: str | None, mv: str, recs: dict[str, dict]) -> str | None:
+    if t in recs:
+        rec = recs[t]
+        mae = float(rec["value"])
+        typ = _typical_on_w().get(str(t))
+        where = "on synthetic days (synthetic HVAC)" if rec["synthetic"] else f"on real recordings it never trained on ({rec['eval_sessions']})"
+        tail = f", about {mae / typ * 100:.0f}% of its typical {d.watts(typ)} W draw." if typ else "."
+        return f"Splitter {mv} error {where}: {d.watts(mae)} W" + tail
+    if t == "hvac":
+        return "Heating and cooling is synthetic in the practice home, so no real-data error exists for it."
+    return None
+
+
+def breakdown_items(c: Ctx, h_all: pd.DataFrame, labels: dict[str, str], types: dict[str, str]) -> tuple[list[dict], float, str]:
+    """Rows for one window: cost, share and kWh from the preferred source, plus the comparison."""
+    h = preferred_hourly(h_all)
+    nh, nilm_mv = latest_nilm(h_all)
+    usd = _cost_by(h, c.tariff, "appliance_id") if len(h) else pd.Series(dtype=float)
+    total = float(usd.sum()) if len(usd) else 0.0
+    kwh = h.groupby("appliance_id")["kwh"].sum() if len(h) else pd.Series(dtype=float)
+    src_of = h.groupby("appliance_id")["source"].agg(lambda x: x.mode().iloc[0]).to_dict() if len(h) else {}
+    mv_of = h.groupby("appliance_id")["model_version"].agg(lambda x: x.mode().iloc[0]).to_dict() if len(h) else {}
+    other = {"nilm": h_all[h_all["source"] == "sim"] if len(h_all) else h_all, "sim": nh}
+    other_usd = {k: (_cost_by(v, c.tariff, "appliance_id") if len(v) else pd.Series(dtype=float)) for k, v in other.items()}
+    recs = _nilm_notes(c, nilm_mv)
+    items = []
+    for app in sorted(set(usd.index) & set(labels)):
+        src = src_of.get(app, "sim")
+        u = float(usd.get(app, 0.0))
+        cmp_src = "sim" if src == "nilm" else "nilm" if src == "sim" else None
+        cu = other_usd.get(src, pd.Series(dtype=float))
+        cmp_u = float(cu.get(app)) if cmp_src and app in cu.index else None
+        t = types.get(app)
+        items.append({
+            "appliance_id": app, "label": labels[app], "type": t or "other",
+            "usd": u, "usd_display": d.money(u), "share_pct": u / total * 100 if total else 0.0,
+            "share_display": f"{(u / total * 100 if total else 0.0):.0f}%", "kwh_display": d.kwh(float(kwh.get(app, 0.0))),
+            "source": src, "source_label": SOURCE_LABEL.get(src, src), "model_version": mv_of.get(app, ""),
+            "compare_label": COMPARE_LABEL.get(cmp_src) if cmp_u is not None else None,
+            "compare_usd_display": d.money(cmp_u) if cmp_u is not None else None,
+            "compare_share_pct": (cmp_u / total * 100 if total else 0.0) if cmp_u is not None else None,
+            "error_note": _error_note(t, nilm_mv, recs) if src == "nilm" or cmp_src == "nilm" else None,
+        })
+    items.sort(key=lambda x: -x["usd"])
+    return items, total, nilm_mv
+
+
 def appliances(c: Ctx) -> dict:
     ms = c.month_start()
     h_all = c.hourly_all(ms, c.local_now)
+    labels, types = c.labels(), c.types()
+    items, total, nilm_mv = breakdown_items(c, h_all, labels, types)
     h = preferred_hourly(h_all)
-    nh, nilm_mv = latest_nilm(h_all)
-    est_usd = _cost_by(nh, c.tariff, "appliance_id") if len(nh) else pd.Series(dtype=float)
-    labels = c.labels()
-    types = c.types()
-    usd = _cost_by(h, c.tariff, "appliance_id") if len(h) else pd.Series(dtype=float)
-    total = float(usd.sum()) if len(usd) else 0.0
     today = c.local_now.normalize()
-    ht = h[h["bucket"] >= today.tz_convert("UTC")] if len(h) else h
-    kwh_today = ht.groupby("appliance_id")["kwh"].sum() if len(ht) else pd.Series(dtype=float)
-    if c.local_now == today and len(h):  # at local midnight, "today" is the day that just ended
-        y = today - pd.Timedelta(days=1)
-        hy = h[(h["bucket"] >= y.tz_convert("UTC")) & (h["bucket"] < today.tz_convert("UTC"))]
-        kwh_today = hy.groupby("appliance_id")["kwh"].sum()
+    day0 = today - pd.Timedelta(days=1) if c.local_now == today else today  # at local midnight, "today" is the day that just ended
+    hd = h[(h["bucket"] >= day0.tz_convert("UTC")) & (h["bucket"] < (day0 + pd.Timedelta(days=1)).tz_convert("UTC"))] if len(h) else h
+    kwh_today = hd.groupby("appliance_id")["kwh"].sum() if len(hd) else pd.Series(dtype=float)
     live = c.client.sql(
         f"SELECT appliance_id, ts_us, watts, source FROM appliance_power WHERE household_id = '{c.hh}' AND ts_us >= {us(c.now - pd.Timedelta(minutes=10))} AND ts_us <= {us(c.now)}"
     )
-    nilm = c.client.sql(
-        "SELECT appliance_type, metric, value, eval_sessions, synthetic FROM model_metric "
-        f"WHERE component = 'cmp09_nilm' AND model_version = '{nilm_mv or 'co-v1'}'"
-    )
-    nilm_rec = {r["appliance_type"]: r for r in nilm.to_dict("records") if r["metric"] == "mae_w"} if len(nilm) else {}
-    hours = h.groupby("appliance_id")["covered_s"].sum() / 3600 if len(h) else pd.Series(dtype=float)
-    kwh_m = h.groupby("appliance_id")["kwh"].sum() if len(h) else pd.Series(dtype=float)
-    src_of = h.groupby("appliance_id")["source"].first().to_dict() if len(h) else {}
-    mv_of = h.groupby("appliance_id")["model_version"].first().to_dict() if len(h) else {}
-    items = []
-    for app in sorted(set(usd.index) | set(labels) - {"baseload"} if len(usd) else labels):
-        if app not in labels:
-            continue
-        src = src_of.get(app, "sim")
-        lw = None
-        stale = True
+    for it in items:
+        lw, stale = None, True
         if len(live):
-            lv = live[(live["appliance_id"] == app) & (live["source"] == src)].sort_values("ts_us")
+            lv = live[(live["appliance_id"] == it["appliance_id"]) & (live["source"] == it["source"])].sort_values("ts_us")
             if len(lv):
                 lw = float(lv.iloc[-1]["watts"])
                 stale = c.now - from_us(int(lv.iloc[-1]["ts_us"])) > STALE_SIM
-        u = float(usd.get(app, 0.0))
-        share = u / total * 100 if total else 0.0
-        t = types.get(app)
-        nilm_note = None
-        has_est = nilm_mv != "" and app in est_usd.index
-        eu = float(est_usd.get(app, 0.0)) if has_est else None
-        if t in nilm_rec and float(hours.get(app, 0)) > 0:  # TRS-16-06: error in watts and as a share of typical draw
-            rec = nilm_rec[t]
-            mae = float(rec["value"])
-            avg_w = float(kwh_m.get(app, 0.0)) * 1000 / float(hours[app])
-            pct = mae / avg_w * 100 if avg_w > 0 else None
-            where = "on synthetic days (synthetic HVAC)" if rec["synthetic"] else f"on real recordings ({rec['eval_sessions']})"
-            nilm_note = (f"Splitter ({nilm_mv or 'co-v1'}) held-out error {where}: {d.watts(mae)} W"
-                         + (f", about {pct:.0f}% of this appliance's average draw." if pct is not None else "."))
-        elif t == "hvac":
-            nilm_note = "Heating and cooling is synthetic in the practice home, so no real-data error exists for it."
-        items.append({
-            "appliance_id": app, "label": labels[app], "type": types.get(app, "other"),
-            "usd_mtd": u, "usd_mtd_display": d.money(u), "share_pct": share, "share_display": f"{share:.0f}%",
-            "kwh_today_display": d.kwh(float(kwh_today.get(app, 0.0))),
-            "live_watts_display": d.watts(lw) if lw is not None else None, "stale": bool(stale),
-            "source": src, "source_label": SOURCE_LABEL.get(src, src), "model_version": mv_of.get(app, ""),
-            "error_detail": ("Simulated feed: these numbers come straight from the practice home, so there is no estimation error to show."
-                             if src == "sim" else "Measured by a plug." if src == "plug" else "Estimated by the appliance splitter."),
-            "nilm_note": nilm_note,
-            "est_usd_mtd": eu, "est_usd_mtd_display": d.money(eu) if eu is not None else None,
-            "est_share_pct": (eu / total * 100 if total else 0.0) if eu is not None else None,
-            "est_label": f"estimated · {nilm_mv}" if has_est else None,
-        })
-    items.sort(key=lambda x: -x["usd_mtd"])
+        it |= {"kwh_today_display": d.kwh(float(kwh_today.get(it["appliance_id"], 0.0))),
+               "live_watts_display": d.watts(lw) if lw is not None else None, "stale": bool(stale)}
+    lead = items[0]["source"] if items else "nilm"
     return {"items": items, "total_display": d.money(total), "as_of": c.local_now.strftime("%-I:%M %p"),
-            "nilm_model_version": nilm_mv or None}
+            "source_label": SOURCE_LABEL.get(lead, lead), "nilm_model_version": nilm_mv or None}
+
+
+def day_breakdown(c: Ctx, day: str) -> dict:
+    """v0.12: one local day's appliance costs, for the bill chart's day box. Same rows as panel 2."""
+    start = pd.Timestamp(day, tz=c.tz)
+    if start.normalize() != start or start >= c.local_now:
+        raise ValueError("pick a day that has already happened this month")
+    h_all = c.hourly_all(start, start + pd.Timedelta(days=1))
+    items, total, nilm_mv = breakdown_items(c, h_all, c.labels(), c.types())
+    lead = items[0]["source"] if items else "nilm"
+    return {"day": day, "label": start.strftime("%A %b %-d"), "items": items, "total_display": d.money(total),
+            "source_label": SOURCE_LABEL.get(lead, lead), "nilm_model_version": nilm_mv or None}
 
 
 # ---------------------------------------------------------------- panel 3: spikes
@@ -409,7 +447,7 @@ def savings(c: Ctx) -> dict:
         monday = pd.Timestamp.fromisocalendar(int(r["week_id"][:4]), int(r["week_id"][6:]), 1)
         outcome = _status_label(r)
         if r["status"] == "verified":
-            detail = f"Saved {d.money(float(r['verified_saving_usd']))} dollars that week"
+            detail = f"Saved {d.money(float(r['verified_saving_usd']))} that week"
         elif r["status"] == "not_verified":
             detail = f"Expected {d.money(float(r['saving_usd']))}, measured {d.money(float(r['verified_saving_usd']))}"
         elif r["status"] == "accepted":

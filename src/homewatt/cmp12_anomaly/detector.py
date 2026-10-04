@@ -26,6 +26,8 @@ Z_ACT = 5.0  # TRS-12-06
 BASELINE_DAYS = 14
 MIN_BASELINE_DAYS = 10  # TRS-12-04
 MAD_K = 1.4826
+# v0.12: the one reader that keeps the simulated feed first. co-v2.1 reports fixed on-levels, so it
+# cannot see a fridge drawing more; the detector reads the sim feed until a splitter outputs real watts.
 SOURCE_PREFERENCE = ("plug", "sim", "nilm")
 
 

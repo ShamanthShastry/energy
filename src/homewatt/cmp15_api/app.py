@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 DIST = REPO_ROOT / "dashboard" / "dist"
 
 app = FastAPI(title="HomeWatt API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"], allow_credentials=True)
 
 _client = None
 
@@ -54,6 +54,81 @@ async def _unhandled(request, exc):  # noqa: ARG001
         return JSONResponse({"detail": "store unavailable"}, status_code=503)
     log.exception("unhandled")
     return JSONResponse({"detail": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+# ---------------------------------------------------------------- v0.12 sign-up and log-in (CMP-14)
+@app.middleware("http")
+async def require_login(request, call_next):
+    """Every /api route except /api/auth/* needs a signed session cookie."""
+    from homewatt.cmp14_onboarding.accounts import SESSION_COOKIE, read_session, session_secret
+
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith("/api/auth/"):
+        if read_session(request.cookies.get(SESSION_COOKIE), session_secret()) is None:
+            return JSONResponse({"detail": "Log in to continue."}, status_code=401)
+    return await call_next(request)
+
+
+def _signed_in(payload: dict) -> JSONResponse:
+    from homewatt.cmp14_onboarding.accounts import (
+        SESSION_COOKIE,
+        SESSION_DAYS,
+        make_session,
+        session_secret,
+    )
+
+    r = ok(payload)
+    r.set_cookie(SESSION_COOKIE, make_session(payload["email"], session_secret()), max_age=SESSION_DAYS * 86400,
+                 httponly=True, samesite="lax")
+    return r
+
+
+@app.post("/api/auth/signup")
+def post_signup(body: dict):
+    from homewatt.cmp14_onboarding.accounts import Signup, SignupError, create_account
+    from homewatt.config import get_settings
+
+    try:
+        acc = create_account(client(), Signup(str(body.get("name", "")), str(body.get("email", "")), str(body.get("password", "")),
+                                              str(body.get("zip", ""))), get_settings().household_id)
+    except SignupError as e:
+        raise HTTPException(400, str(e)) from e
+    return _signed_in(acc)
+
+
+@app.post("/api/auth/login")
+def post_login(body: dict):
+    from homewatt.cmp14_onboarding.accounts import check_login
+
+    acc = check_login(client(), str(body.get("email", "")), str(body.get("password", "")))
+    if acc is None:
+        raise HTTPException(401, "Email or password is wrong.")
+    return _signed_in(acc)
+
+
+@app.post("/api/auth/logout")
+def post_logout():
+    from homewatt.cmp14_onboarding.accounts import SESSION_COOKIE
+
+    r = ok({"ok": True})
+    r.delete_cookie(SESSION_COOKIE)
+    return r
+
+
+@app.get("/api/auth/me")
+def get_me(request: Request):
+    from homewatt.cmp14_onboarding.accounts import (
+        SESSION_COOKIE,
+        find_account,
+        read_session,
+        session_secret,
+    )
+
+    email = read_session(request.cookies.get(SESSION_COOKIE), session_secret())
+    acc = find_account(client(), email) if email else None
+    if acc is None:
+        raise HTTPException(401, "Log in to continue.")
+    return ok({"email": acc["email"], "name": acc["name"]})
 
 
 # ---------------------------------------------------------------- reads (TRS-15 outputs)
@@ -95,6 +170,15 @@ def get_savings():
 @app.get("/api/tariff")
 def get_tariff():
     return ok(data.tariff(ctx()))
+
+
+@app.get("/api/day/{day}")
+def get_day(day: str):
+    """v0.12: the appliance rundown behind one bar of the bill chart."""
+    try:
+        return ok(data.day_breakdown(ctx(), day))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 @app.get("/api/thermostat")

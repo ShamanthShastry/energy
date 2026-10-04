@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # CMP-20 narrator. Read from GEMINI_API_KEY in .env (gitignored); never logged.
     gemini_api_key: str = Field(default="", validation_alias=AliasChoices("GEMINI_API_KEY", "HOMEWATT_GEMINI_API_KEY"))
     gemini_model: str = "gemini-2.5-flash"
+    session_secret: str = ""  # v0.12 sign-in cookies; empty = generated into data/.session_secret
     location_id: str = "ann_arbor"
     tariff_dir: Path = REPO_ROOT / "config" / "tariffs"
     profile_path: Path = REPO_ROOT / "config" / "profiles" / "demo_household.yaml"

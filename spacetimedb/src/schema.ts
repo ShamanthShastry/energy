@@ -38,6 +38,20 @@ export const household = table(
   }
 );
 
+// v0.12 CMP-14 sign-up: simple accounts. Private (passwords are hashed by the API; the dashboard
+// never reads this table). Every account opens one household until multi-household auth (OI-07).
+export const userAccount = table(
+  { name: 'user_account' },
+  {
+    email: t.string().primaryKey(), // lower-cased
+    name: t.string(),
+    zip: t.string(),
+    passwordHash: t.string(), // scrypt, salted, written by the API
+    householdId: t.string(),
+    createdAtUs: t.i64(),
+  }
+);
+
 // TRS-14-04: profile edits are versioned; each save appends a row.
 export const householdProfileVersion = table(
   {
@@ -560,6 +574,7 @@ export const applianceDayFeature = table(
 const spacetimedb = schema({
   owner,
   household,
+  userAccount,
   householdProfileVersion,
   appliance,
   plugBinding,

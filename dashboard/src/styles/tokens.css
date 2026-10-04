@@ -11,4 +11,7 @@
   --green-100: #DDF2E6;   /* tints, selected tile, chip backgrounds */
   --warn: #B8772A;        /* spike alerts, "act" severity (amber, not red) */
   --crit: #A33D2E;        /* only failed actuations and data errors */
+  --yellow-200: #FFFFC5;  /* secondary: selected bill day (v0.12) */
+  --yellow-100: #FFFFE6;  /* secondary tint: the open day box */
+  --yellow-700: #8A6D0B;  /* secondary text and outline on yellow */
 }

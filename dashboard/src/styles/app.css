@@ -65,12 +65,15 @@ line.ref { stroke: var(--muted); stroke-width: 1; }
 .bar-row { width: 100%; display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; background: none; border: 0; padding: 5px 0; cursor: pointer; text-align: left; color: inherit; }
 .bar-label { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { height: 14px; background: transparent; position: relative; }
-.bar-fill { position: absolute; left: 0; top: 0; bottom: 5px; background: var(--green-500); border-radius: 0 4px 4px 0; min-width: 2px; }
-.bar-est { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--muted); border-radius: 0 2px 2px 0; min-width: 2px; }
-.bars-key { font-size: 12px; margin: 0 0 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.key-fill, .key-est { display: inline-block; width: 14px; border-radius: 2px; }
-.key-fill { height: 8px; background: var(--green-500); }
-.key-est { height: 3px; background: var(--muted); margin-left: 8px; }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--green-500); border-radius: 0 4px 4px 0; min-width: 2px; }
+.compare { display: grid; grid-template-columns: minmax(0, auto) 1fr; gap: 10px; align-items: center; margin-top: 2px; }
+.compare-label { font-size: 12px; color: var(--muted); }
+.bar-compare { position: absolute; left: 0; top: 3px; height: 8px; background: var(--muted); opacity: .45; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-selected { fill: var(--yellow-200); stroke: var(--yellow-700); stroke-width: 1; }
+.mark-pick { cursor: pointer; }
+.day-box { margin-top: 12px; padding: 12px 14px; background: var(--yellow-100); border: 1px solid var(--line); border-radius: 8px; }
+.day-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; margin-bottom: 6px; }
+.day-close { margin-left: auto; }
 .bar-value { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-detail { font-size: 13px; padding: 4px 0 8px 130px; }
 .alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
@@ -131,3 +134,14 @@ line.ref { stroke: var(--muted); stroke-width: 1; }
 /* v0.11 precool schedule on the thermostat card and in its confirm step */
 .schedule { display: grid; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .schedule-lines { margin: 2px 0; padding-left: 18px; font-variant-numeric: tabular-nums; }
+
+/* v0.12 sign-up / log-in */
+.auth { max-width: 420px; margin: 0 auto; padding-block: 48px 40px; padding-inline: 16px; display: grid; gap: 16px; }
+.auth-brand { justify-content: center; }
+.auth-card { display: grid; gap: 14px; }
+.auth-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.auth-form { display: grid; gap: 12px; }
+.auth-form label { display: grid; gap: 4px; font-size: 14px; font-weight: 550; }
+.auth-form input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); }
+.auth-form input:focus-visible { outline: 2px solid var(--green-500); outline-offset: 1px; }
+.auth-form .notice { margin: 0; }

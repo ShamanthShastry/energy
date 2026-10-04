@@ -669,6 +669,21 @@ export const failActuation = spacetimedb.reducer(
   }
 );
 
+// ------------------------------------------------------------------ v0.12 CMP-14 accounts
+/** Sign-up. The API validates and hashes; this refuses a duplicate email. Owner only, like every write. */
+export const createUserAccount = spacetimedb.reducer(
+  { email: t.string(), name: t.string(), zip: t.string(), passwordHash: t.string(), householdId: t.string() },
+  (ctx, a) => {
+    requireOwner(ctx);
+    const email = a.email.trim().toLowerCase();
+    if (!email.includes('@')) throw new SenderError('email looks wrong');
+    if (!/^\d{5}$/.test(a.zip)) throw new SenderError('ZIP must be 5 digits');
+    if (ctx.db.userAccount.email.find(email)) throw new SenderError('an account with this email already exists');
+    if (!ctx.db.household.householdId.find(a.householdId)) throw new SenderError(`no household ${a.householdId}`);
+    ctx.db.userAccount.insert({ ...a, email, createdAtUs: ctx.timestamp.microsSinceUnixEpoch });
+  }
+);
+
 // ------------------------------------------------------------------ v0.11 device schedules (TRS-19-10..12)
 const ScheduleSpec = t.object('ScheduleSpec', {
   scheduleId: t.string(), actionId: t.string(), householdId: t.string(), applianceId: t.string(), kind: t.string(),

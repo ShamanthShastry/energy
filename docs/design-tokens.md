@@ -14,6 +14,9 @@ Canonical file: `dashboard/src/styles/tokens.css`. Nothing in the dashboard uses
 | `--green-100` | #DDF2E6 | Tints, selected tile, chip backgrounds |
 | `--warn` | #B8772A | Spike alerts, "act" severity (amber, not red) |
 | `--crit` | #A33D2E | Only for failed actuations and data errors |
+| `--yellow-200` | #FFFFC5 | Secondary: the selected day on the bill chart (v0.12) |
+| `--yellow-100` | #FFFFE6 | Secondary tint: the open day box |
+| `--yellow-700` | #8A6D0B | Text and outline on yellow |
 
 ## Mapping to TRS surfaces
 

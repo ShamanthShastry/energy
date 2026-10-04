@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { usePoll, type Actions, type Alerts, type Appliances, type Meta, type Savings, type Spikes as SpikesT, type Summary, type Thermostat } from './api';
+import { api, ApiError, usePoll, type Actions, type Me, type Alerts, type Appliances, type Meta, type Savings, type Spikes as SpikesT, type Summary, type Thermostat } from './api';
 import { ActionsTab } from './components/ActionsTab';
+import { AuthScreen } from './components/AuthScreen';
 import { Biggest } from './components/Biggest';
 import { Breakdown } from './components/Breakdown';
 import { Health } from './components/Health';
@@ -17,7 +18,18 @@ function initialTab(): Tab {
   return (TABS.find(t => t.id === h)?.id) ?? 'home';
 }
 
+// v0.12: the dashboard opens behind a simple sign-up / log-in (CMP-14).
 export default function App() {
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
+  useEffect(() => {
+    api.get<Me>('/api/auth/me').then(setMe).catch(e => setMe(e instanceof ApiError && e.status === 401 ? null : null));
+  }, []);
+  if (me === undefined) return <div className="app"><p className="empty">Loading…</p></div>;
+  if (me === null) return <AuthScreen onIn={m => { window.location.hash = 'home'; setMe(m); }} />;
+  return <Dashboard me={me} onOut={() => { api.post('/api/auth/logout').finally(() => setMe(null)); }} />;
+}
+
+function Dashboard({ me, onOut }: { me: Me; onOut: () => void }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   useEffect(() => { window.location.hash = tab; }, [tab]);
   useEffect(() => {
@@ -47,6 +59,8 @@ export default function App() {
         <div className="top-meta">
           {meta.data ? <span className="clock">{meta.data.now_label}</span> : null}
           {meta.data?.simulated_feed ? <Chip tone="sim" icon="◌">Simulated feed</Chip> : null}
+          <span className="small muted">{me.name}</span>
+          <button className="btn btn-quiet" onClick={onOut}>Log out</button>
         </div>
       </header>
       <nav className="tabs" role="tablist" aria-label="Sections">

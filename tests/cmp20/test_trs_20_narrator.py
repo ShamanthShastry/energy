@@ -17,7 +17,7 @@ def reply(*pairs):
 
 def test_trs_20_verification_9_10_appears_and_no_other_dollar_figure():
     rec = record_for(act(), LABELS, False, [])
-    assert rec["saving_dollars_per_month"] == "9.10"
+    assert rec["saving_dollars_per_month"] == "$9.10"
     good = narrate(FakeBackend([reply(("a1", "Running the dryer after 21:00 could save 9.10 dollars a month."))]), [rec], list(LABELS.values()))
     assert good[0].narrated and "9.10" in good[0].text
     bad = narrate(FakeBackend([reply(("a1", "Running the dryer later could save about 9 dollars, maybe 10."))]), [rec], list(LABELS.values()))
@@ -41,8 +41,8 @@ def test_trs_20_verification_malformed_json_one_retry_then_fallback_to_assumptio
 def test_trs_20_05_word_limit_and_symbols():
     rec = record_for(act(), LABELS, False, [])
     assert check(" ".join(["word"] * 31), rec, []) and "30" in check(" ".join(["word"] * 31), rec, [])
-    assert "symbol" in check("Save $9.10 a month.", rec, [])
-    assert check("Save 9.10 dollars a month by running the dryer after 21:00.", rec, list(LABELS.values())) is None
+    assert check("Turn the A/C up. Saves $9.10 a month.", rec, []) == "abbreviation (TRS-20-05)"
+    assert check("Run the dryer after 21:00. Saves $9.10 a month.", rec, list(LABELS.values())) is None  # v0.12 symbols
 
 
 def test_trs_20_10_not_verified_history_cannot_be_claimed_as_saving():
@@ -57,7 +57,7 @@ def test_trs_20_03_one_statement_per_action_and_no_invented_ones():
     recs = [record_for(act("a1"), LABELS, False, []), record_for(act("a2", "wh", assumption="assumes the water heater is set to 49 °C (120 °F)"), LABELS, False, [])]
     st = narrate(FakeBackend([reply(("a1", "Run the dryer after 21:00 to save 9.10 dollars a month."), ("zzz", "Buy solar panels."))]), recs, list(LABELS.values()))
     assert [s.action_id for s in st] == ["a1", "a2"] and st[0].narrated and not st[1].narrated
-    assert " degrees" in recs[1]["change"] and "°" not in recs[1]["change"]
+    assert "49 °C" in recs[1]["change"] and not recs[1]["change"].lower().startswith("assumes")
 
 
 def test_trs_20_01_narrator_imports_nothing_from_tariff_forecast_or_rollups():

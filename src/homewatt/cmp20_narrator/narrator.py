@@ -5,7 +5,7 @@ falls back to the action's assumption_text, marked unnarrated):
   TRS-20-02 every number in the text appears, as a string, in that action's input record;
   TRS-20-03 one statement per input action; names no appliance other than its own;
   TRS-20-04 schema-valid JSON, retried once with the error, then discarded;
-  TRS-20-05 at most 30 words, no symbols ($ % ° ₂) or abbreviations like CO2 / kWh;
+  TRS-20-05 at most 30 words; unit symbols ($, °C) allowed since v0.12, "A/C" is not;
   TRS-20-10 never implies a not-verified action saved money.
 """
 
@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 MAX_WORDS = 30
 NUMBER_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
-FORBIDDEN = re.compile(r"[$%°₂]|\bCO2\b|\bkWh\b|\bkg\b|\bA/C\b", re.IGNORECASE)
+FORBIDDEN = re.compile(r"\bA/C\b", re.IGNORECASE)  # v0.12: symbols allowed; numbers are still checked verbatim
 
 SCHEMA = {
     "type": "OBJECT",
@@ -103,7 +103,7 @@ def check(text: str, record: dict, all_labels: list[str]) -> str | None:
     if len(words) > MAX_WORDS:
         return f"{len(words)} words > {MAX_WORDS} (TRS-20-05)"
     if FORBIDDEN.search(text):
-        return "symbol or abbreviation (TRS-20-05)"
+        return "abbreviation (TRS-20-05)"
     allowed = _numbers_in(record)
     for n in NUMBER_RE.findall(text):
         if n not in allowed:

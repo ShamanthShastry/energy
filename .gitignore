@@ -36,3 +36,4 @@ spacetimedb/node_modules/
 *.tsbuildinfo
 !data/models/
 !data/models/*.json
+data/.session_secret

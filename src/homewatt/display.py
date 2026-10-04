@@ -4,15 +4,15 @@ both use it, so a figure on the dashboard and in a sentence is the same string (
 from __future__ import annotations
 
 import math
-import re
 
 DAYS_PER_MONTH = 30.4375
 
 
 def money(x: float | None) -> str:
+    """$4.56, −$1.20 (v0.12: symbols on every page)."""
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return "–"
-    return f"{x:,.2f}"
+    return f"−${-x:,.2f}" if x < 0 else f"${x:,.2f}"
 
 
 def kg(x: float | None) -> str:
@@ -40,13 +40,11 @@ def pct(x: float | None) -> str:
 
 
 def plain_change(assumption_text: str) -> str:
-    """An action's assumption_text as a readable line: drops the leading 'assumes', spells out
-    unit symbols. Wording only; every number is kept as written (TRS-20-02)."""
+    """An action's assumption_text as a readable line: drops the leading 'assumes'. Unit symbols
+    stay (v0.12). Wording only; every number is kept as written (TRS-20-02)."""
     t = assumption_text.strip()
     if t.lower().startswith("assumes "):
         t = t[len("assumes "):]
-    t = t.replace(" °C", " degrees").replace("°C", " degrees").replace(" °F", " degrees Fahrenheit").replace("°F", " degrees Fahrenheit")
-    t = re.sub(r"(?<![\d.])1 degrees", "1 degree", t)
     return t[:1].upper() + t[1:]
 
 

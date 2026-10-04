@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.11.1 — DRAFT |
+| Version | 0.12 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -133,7 +133,7 @@ V1 is a hackathon build. The following are simulated at the demo and labelled as
 | Tariff | Real: typed in from the utility's rate sheet | Per-utility lookup |
 | Demo clock and household | The replay runs on the timeline's own clock (sim\_clock table); ledger, alert and actuation times follow it. The simulated household follows every suggestion it accepted, from the moment it accepted it, and an applied setpoint or an installed schedule reshapes the HVAC track from the tap (TRS-19-07). Verified savings in the demo therefore measure a household that always complies, and are labelled as replayed | Real households, real compliance |
 | HVAC | Synthesized from weather by a thermostat model (TRS-06-07); NILM hvac head trained on synthetic data only. Dryer, oven, and EV remain absent | Real clamp data, hvac head retrained on it; UK-DALE signatures for dryer and oven |
-| Per-appliance split | The CMP-06 ground-truth tracks are fed through CMP-05 as source='sim' at 60 s means, labelled "simulated feed" (v0.5). The deployed NILM baseline (CMP-09, co-v2.1) writes its own 'nilm' rows alongside at 60 s means, shown with its error (v0.10). A household without a simulated feed runs on those rows (TRS-08-01) | NILM only (CMP-09) |
+| Per-appliance split | The CMP-06 ground-truth tracks are fed through CMP-05 as source='sim' at 60 s means, labelled "simulated feed" (v0.5). The deployed NILM baseline (CMP-09, co-v2.1) writes its own 'nilm' rows alongside at 60 s means, shown with its error (v0.10). A household without a simulated feed runs on those rows (TRS-08-01) Since v0.12 every per-appliance figure, forecast, priced action and verification leads with the 'nilm' rows; the simulated feed is shown only as a comparison when a row is opened, and remains the input of the fault detector (TRS-08-01) | NILM only (CMP-09) |
 
 ## 5. Component specifications
 
@@ -528,7 +528,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 **Requirements**
 
-- TRS-08-01 — (household\_id, appliance\_id, ts\_us, source, model\_version) shall be unique. Plug, sim, and NILM rows may coexist for the same appliance and timestamp; readers shall prefer plug, then sim, then nilm (TRS-02-03), and may show a nilm estimate next to a sim value with its error.
+- TRS-08-01 — (household\_id, appliance\_id, ts\_us, source, model\_version) shall be unique. Plug, sim, and NILM rows may coexist for the same appliance and timestamp; readers shall prefer plug, then sim, then nilm (TRS-02-03), and may show a nilm estimate next to a sim value with its error. Since v0.12 readers prefer plug, then nilm (the deployed model version), then sim, so the demo behaves as a deployed home would; the one exception is CMP-12, which reads sim before nilm because the deployed CO model reports fixed on-levels and cannot see an appliance drawing more than usual (decision of S. Shastry, 2026-10-04).
 - TRS-08-02 — Every NILM row shall carry a non-empty model\_version (TRS-SYS-02). An insert without one shall be rejected by the reducer.
 - TRS-08-03 — The hourly rollup shall compute kWh as the time-weighted integral of watts, not the mean of samples, so that gaps do not inflate energy. Realised as Σ watts × dt\_s where dt\_s is the interval since the previous row of the same key when that is at most five sample periods of the stream (10 s for the 2 s sensor, 300 s for the 60 s simulated feed), else one sample period; a gap therefore contributes no energy. The writer declares the stream's sample period on each call.
 - TRS-08-04 — Rollups shall be maintained in the same transaction as the appliance\_power insert, so they are never stale.
@@ -816,7 +816,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 **Requirements**
 
-- TRS-14-01 — Onboarding shall complete in one screen and shall require only ZIP and tariff\_id. Appliances may be added later.
+- TRS-14-01 — Onboarding shall complete in one screen. Since v0.12 it is a sign-up asking name, email, password (at least 8 characters) and a 5-digit ZIP, or a log-in, and leads straight to the main tab. Passwords are stored only as salted scrypt hashes in a private table; a session is a signed cookie, and every API route except sign-up and log-in requires one. Every account opens the one demo household until OI-07 and OI-10 are settled; the tariff is not asked yet. Appliances may be added later.
 - TRS-14-02 — Each appliance shall carry a type from a closed list (fridge, water\_heater, hair\_dryer, iron, laptop, screen, lamp, straightener, hvac, dryer, oven, ev, other). The type selects the NILM output head, the anomaly features, and the action templates.
 - TRS-14-03 — A plug may be bound to at most one appliance; rebinding shall end the previous binding with a timestamp, not overwrite it.
 - TRS-14-04 — The profile shall be editable at any time; edits shall be versioned.
@@ -909,12 +909,12 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 **Requirements**
 
-- TRS-16-01 — The dashboard's main tab shall show exactly five panels in this order: month summary, appliance breakdown, spike alert, appliance health, biggest impact change. Nothing else above the fold on that tab. The main tab carries no action controls (v0.6).
-- TRS-16-02 — The month summary shall show month-to-date, projected total, and the projected range (p50 to p90) as a single visual, with the comparison to last month as a signed percentage.
+- TRS-16-01 — The dashboard's main tab shall show exactly five panels in this order: month summary, appliance breakdown, spike alert, appliance health, biggest impact change. Nothing else above the fold on that tab. The main tab carries no action controls (v0.6). The spike panel is titled "Looking ahead" (v0.12).
+- TRS-16-02 — The month summary shall show month-to-date, projected total, and the projected range (p50 to p90) as a single visual, with the comparison to last month as a signed percentage. Tapping a day that has happened selects it (secondary colour, light yellow) and opens that day's appliance rundown below the chart, in the same rows as the appliance breakdown (v0.12).
 - TRS-16-03 — The appliance breakdown shall update live (≤ 5 s latency from a plug sample) for measured appliances and at the rollup cadence for estimated ones. Each tile shall display "measured" or "estimated" (TRS-SYS-02).
 - TRS-16-04 — A stale measured tile shall show its staleness; it shall not revert to the estimate (TRS-02-04).
 - TRS-16-05 — Every forecast figure shall be shown with its range, never as a point alone.
-- TRS-16-06 — The appliance breakdown shall expose the held-out error of the NILM model version in use (TRS-09-05) on a details view, in watts and as a share of that appliance's typical draw.
+- TRS-16-06 — The appliance breakdown shall expose the held-out error of the NILM model version in use (TRS-09-05) on a details view, in watts and as a share of that appliance's typical draw. Typical draw is the appliance's learned on-level in the deployed model (v0.12).
 - TRS-16-07 — At the demo, any panel driven by replayed data shall carry a visible "simulated feed" marker (§4.2).
 - TRS-16-08 — The biggest impact change panel shall show the highest-ranked open action's saving in $/month and kg CO₂/month and its assumption\_text, with a link to the Actions tab. It shall carry no accept, dismiss, or Take action control; actions are taken only on the Actions tab (TRS-16-11).
 - TRS-16-09 — The dashboard shall render usably at 400 px width.
@@ -1126,7 +1126,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 - TRS-20-03 — The narrator shall not propose actions. Its output shall be one statement per input action and shall name no appliance, time, or behaviour absent from that action's record.
 - TRS-20-04 — Output shall be structured: {action\_id, text}. A response that is not valid against the schema shall be retried once with the schema error, then discarded.
-- TRS-20-05 — Each statement shall be at most 30 words and shall be readable aloud without symbols or abbreviations.
+- TRS-20-05 — Each statement shall be at most 30 words. Since v0.12 unit symbols are used ($, °C, °F) as everywhere else on the dashboard, since the voice channel that required spoken-only text was removed in v0.4; abbreviations such as A/C are not.
 - TRS-20-06 — The narrator shall run only when CMP-13 produces new actions or CMP-15 reports a new spike; never on a schedule of its own. V1 narrates actions only, re-narrating when an action's structured input changes; spike statements have no surface since the Voice tab was removed (v0.4) and are not built.
 - TRS-20-07 — Model access shall go through a NarratorBackend protocol with one method, so that the provider can be swapped without touching any other component. The instructions live in `config/narrator.md`; editing them re-narrates every open action (v0.11.1). Each statement says the concrete change (device, days, times, setting) and then the monthly saving; carbon and history are shown elsewhere on the tab.
 - TRS-20-08 — Every statement shall carry model\_version and shall be retained; a superseded statement is marked superseded, never deleted.
@@ -1191,7 +1191,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | OI-04 | Carbon intensity source. V1 uses a static regional average. An hourly feed (Electricity Maps, WattTime) changes the CO₂ value of shift actions and would need an API key. | CMP-04 | Deferred |
 | OI-05 | Hardware. Whether a smart plug arrives before the event, and whether anyone wants to clamp a CT on a real mains feed. Without the plug, CMP-02 and CMP-10 are dropped and "measured" never appears on the dashboard. | CMP-02, CMP-10, CMP-16 | Hardware lead |
 | OI-06 | Cadence mismatch. The forecaster runs hourly; the anomaly detector runs daily; the dashboard polls every 5 s. Whether one scheduler (APScheduler) or three cron entries is undecided. | CMP-11, CMP-12 | Backend lead |
-| OI-07 | Authentication. V1 may use a single hard-coded household. Multi-household auth is specified nowhere in this document. | CMP-14, CMP-15 | Deferred |
+| OI-07 | Authentication. v0.12: simple accounts (sign-up and log-in, hashed passwords, signed session cookie), every account opening the one demo household. Multi-household auth (an account per home, with its own data) is not specified. | CMP-14, CMP-15 | Deferred |
 | OI-08 | No Nest device is available to the team. V1 ships the simulated adapter only; the SDM adapter is specified but untested. Google Device Access enrollment (fee, OAuth, project setup) has not been started and its current terms are unverified. | CMP-19 | Backend lead, if a device turns up |
 | OI-09 | Narrator access. The narrator is Gemini (decided). Gemini API key confirmed 2026-10-04 (gemini-2.5-flash on the Gemini API, key in `.env`); quota for the event not yet checked. Voice delivery (speech synthesis, Alexa) was removed from scope in v0.4; the statements are text on the Actions tab. | CMP-20, CMP-16 | Backend lead, before the event |
 | OI-10 | Price-plan landing page. Decision of S. Shastry 2026-10-04: at account creation the household enters its price plan on a landing page, so every dollar figure uses its own prices (CMP-14, CMP-04). Implementation held until the dashboard runs end to end; raise it again then. Also settles where the active plan is shown on request (TRS-04-04). | CMP-14, CMP-04, CMP-16 | Claude to raise after step 7 |
@@ -1269,3 +1269,4 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | 0.10 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-13 resolved, NILM output stored at 60 s means. New TRS-09-10 (deployed model co-v2.1: power-only CO, synthetic hvac state, per-day baseload estimate; stored output and its held-out results); §4.2 and CMP-08 error handling restated for 60 s rows; CMP-09 gap rule restated per minute. Not baselined. |
 | 0.11 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-11 resolved. TRS-SYS-03 and §1.3 reworded so a tap may install a bounded, week-long schedule on the device; new TRS-19-10 to 19-12 (precool schedule, expiry at week end, logging and undo); TRS-19-06/07, TRS-13-01, TRS-13-12 (search over several parameters, so precool adapts to each week), CMP-19 inputs and outputs, §4.2, Annex A (schema, hvac\_precool row, A.3) restated. Priced with the thermostat model, a fixed 2 h × 2 °C precool fell below the floor at a 26 °C setpoint; the search picks the week's best. Not baselined. |
 | 0.11.1 | 2026-10-04 | Claude (for S. Shastry) | Wording, at S. Shastry's request: Annex A assumption sentences rewritten to state the concrete change with 12-hour times (placeholders {peak\_range}, {pre\_range}, {to\_hour\_12}); narrator instructions moved to `config/narrator.md` with a fixed shape (change, then monthly saving) (TRS-20-07). No behaviour change. Not baselined. |
+| 0.12 | 2026-10-04 | Claude (for S. Shastry) | Decisions of S. Shastry: simple sign-up and log-in (TRS-14-01, OI-07); the splitter estimate leads every per-appliance figure, forecast, priced action and verification, with the simulated feed as an on-request comparison and CMP-12 kept on the simulated feed (TRS-08-01, §4.2); a tapped bill day opens its appliance rundown (TRS-16-02); spike panel titled "Looking ahead" (TRS-16-01); unit symbols everywhere, including narrator statements (TRS-20-05). TRS-16-06 typical draw defined. Not baselined. |

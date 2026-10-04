@@ -109,7 +109,7 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
                     <div className="small muted">{i.appliance_label}{i.narrated ? '' : ' · plain text, writer unavailable'}</div>
                   </td>
                   <td className="num">
-                    <div className="money">{i.saving_month_display} <span className="muted small">dollars</span></div>
+                    <div className="money">{i.saving_month_display}</div>
                     <div className="small muted">{i.kg_month_display} kg CO₂</div>
                   </td>
                   <td className="take-col">
@@ -133,7 +133,7 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
             <h2 id="sched-h">Install a precool schedule on the {sched.p.device_label}?</h2>
             <p>Normally {sched.p.current_display} °C. On {sched.p.days_label} through <strong>{sched.p.until_label}</strong>:</p>
             <ul className="schedule-lines">{sched.p.lines.map(l => <li key={l}><strong>{l}</strong></li>)}</ul>
-            <p className="muted">The thermostat runs this itself and stops at the end of the week. Expected saving: {sched.p.saving_month_display} dollars a month. You can undo for 24 hours.{sched.p.simulated ? ' This is the simulated thermostat.' : ''}</p>
+            <p className="muted">The thermostat runs this itself and stops at the end of the week. Expected saving: {sched.p.saving_month_display} a month. You can undo for 24 hours.{sched.p.simulated ? ' This is the simulated thermostat.' : ''}</p>
             <div className="btns">
               <button className="btn btn-primary" onClick={confirmSchedule}>Install schedule</button>
               <button className="btn btn-quiet" onClick={() => setSched(null)}>Cancel</button>
@@ -148,7 +148,7 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
             <h2 id="confirm-h">Change the {confirm.p.device_label}?</h2>
             <p>From <strong>{confirm.p.current_c} °C</strong> to <strong>{confirm.p.applied_c} °C</strong>.
               {confirm.p.clamped ? <> You asked for {confirm.p.requested_c} °C; your limits allow {confirm.p.applied_c} °C in one step.</> : null}</p>
-            <p className="muted">Expected saving: {confirm.p.saving_month_display} dollars a month. You can undo for 24 hours.{confirm.p.simulated ? ' This is the simulated thermostat.' : ''}</p>
+            <p className="muted">Expected saving: {confirm.p.saving_month_display} a month. You can undo for 24 hours.{confirm.p.simulated ? ' This is the simulated thermostat.' : ''}</p>
             <div className="btns">
               <button className="btn btn-primary" onClick={confirmIt}>Confirm</button>
               <button className="btn btn-quiet" onClick={() => setConfirm(null)}>Cancel</button>

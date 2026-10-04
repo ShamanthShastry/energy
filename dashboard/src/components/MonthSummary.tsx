@@ -1,10 +1,24 @@
-import type { Summary } from '../api';
+import { useEffect, useState } from 'react';
+import { api, ApiError, type DayBreakdown, type Summary } from '../api';
+import { ApplianceRows } from './Breakdown';
 import { Card, Chip, Empty, useTooltip } from './ui';
 
 // TRS-16-02: month-to-date, projected total, and the p50–p90 range as one visual, plus a signed
 // comparison to last month. TRS-16-05: forecast figures always shown with their range.
+// v0.12: click a spent day to open its appliance rundown below the chart.
 export function MonthSummary({ s }: { s: Summary | null }) {
   const tip = useTooltip();
+  const [sel, setSel] = useState<string | null>(null);
+  const [day, setDay] = useState<DayBreakdown | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sel) { setDay(null); return; }
+    let live = true;
+    setErr(null);
+    api.get<DayBreakdown>(`/api/day/${sel}`).then(d => { if (live) setDay(d); })
+      .catch(e => { if (live) setErr(e instanceof ApiError ? e.message : String(e)); });
+    return () => { live = false; };
+  }, [sel]);
   if (!s) return <Card title="This month's bill"><Empty>Loading…</Empty></Card>;
   const W = 640, H = 150, padL = 36, padB = 22, padT = 8;
   const days = s.daily;
@@ -17,7 +31,7 @@ export function MonthSummary({ s }: { s: Summary | null }) {
       <div className="summary-top">
         <div>
           <div className="label">So far</div>
-          <div className="hero">{s.month_to_date_display}<span className="unit"> dollars</span></div>
+          <div className="hero">{s.month_to_date_display}</div>
           <div className="delta">
             {s.vs_last_month_display ? (
               <><strong>{s.vs_last_month_display}</strong> vs the same days last month</>
@@ -46,13 +60,16 @@ export function MonthSummary({ s }: { s: Summary | null }) {
           <line x1={padL} x2={W} y1={H - padB} y2={H - padB} className="baseline" />
           {days.map((d, i) => {
             const x = padL + i * slot + (slot - bw) / 2;
-            const lines = [d.label, d.kind === 'actual' ? `${d.display} dollars` : d.kind === 'forecast' ? `About ${d.display}, up to ${d.p90_display} dollars` : 'No data'];
+            const lines = [d.label, d.kind === 'actual' ? `${d.display}` : d.kind === 'forecast' ? `About ${d.display}, up to ${d.p90_display}` : 'No data'];
             if (d.usd == null) return null;
             const top = y(d.usd);
+            const pick = d.kind === 'actual' ? () => setSel(sel === d.day ? null : d.day) : undefined;
             return (
-              <g key={d.day} {...tip.bind(lines)} tabIndex={0} className="mark">
+              <g key={d.day} {...tip.bind(d.kind === 'actual' ? [...lines, 'Click for the appliance rundown'] : lines)} tabIndex={0}
+                className={pick ? 'mark mark-pick' : 'mark'} onClick={pick} role={pick ? 'button' : undefined} aria-pressed={pick ? sel === d.day : undefined}
+                onKeyDown={pick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } } : undefined}>
                 <rect x={x - 1} y={padT} width={bw + 2} height={H - padB - padT} fill="transparent" />
-                <path d={roundTop(x, top, bw, H - padB - top)} className={d.kind === 'actual' ? 'bar-actual' : 'bar-forecast'} />
+                <path d={roundTop(x, top, bw, H - padB - top)} className={sel === d.day ? 'bar-selected' : d.kind === 'actual' ? 'bar-actual' : 'bar-forecast'} />
                 {d.kind === 'forecast' && d.p90_usd != null ? (
                   <line x1={x + bw / 2} x2={x + bw / 2} y1={y(d.p90_usd)} y2={top} className="range-line" />
                 ) : null}
@@ -67,6 +84,16 @@ export function MonthSummary({ s }: { s: Summary | null }) {
         </div>
         {tip.node}
       </div>
+      {sel ? (
+        <div className="day-box" aria-live="polite">
+          <div className="day-head">
+            <strong>{day ? day.label : 'Loading…'}</strong>
+            {day ? <span className="muted"> · {day.total_display} · {day.source_label === 'estimated' && day.nilm_model_version ? `estimated by ${day.nilm_model_version}` : day.source_label}</span> : null}
+            <button className="btn btn-quiet day-close" onClick={() => setSel(null)} aria-label="Close the day rundown">Close</button>
+          </div>
+          {err ? <p className="notice notice-crit">{err}</p> : day ? <ApplianceRows items={day.items} /> : null}
+        </div>
+      ) : null}
     </Card>
   );
 }

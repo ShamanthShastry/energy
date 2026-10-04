@@ -47,3 +47,24 @@ def test_trs_16_07_simulated_feed_marker_present():
 def test_axis_ticks_are_display_strings_from_the_api():
     t = nice_ticks(7.9)
     assert [x["display"] for x in t] == ["5", "10", "15"] or all(isinstance(x["display"], str) for x in t)
+
+
+def test_trs_08_01_v0_12_estimate_leads_everywhere_but_the_fault_detector():
+    import pandas as pd
+
+    from homewatt.cmp11_forecaster.pipeline import SOURCE_PREFERENCE, preferred_hourly
+    from homewatt.cmp12_anomaly import detector
+
+    assert SOURCE_PREFERENCE == ("plug", "nilm", "sim")
+    assert detector.SOURCE_PREFERENCE == ("plug", "sim", "nilm")  # co-v2.1 cannot see a fridge drawing more
+    h = pd.DataFrame({"appliance_id": ["f", "f", "f"], "bucket_us": [1, 1, 1], "source": ["sim", "nilm", "nilm"],
+                      "model_version": ["cmp06", "co-v2", "co-v2.1"], "kwh": [1.0, 2.0, 3.0]})
+    assert preferred_hourly(h)["kwh"].tolist() == [3.0]
+
+
+def test_v0_12_money_carries_its_symbol_and_the_frontend_spells_out_no_units():
+    from homewatt.display import money
+
+    assert money(4.56) == "$4.56" and money(-1.2) == "−$1.20"
+    for p in (REPO / "dashboard" / "src").rglob("*.tsx"):
+        assert "dollars" not in p.read_text(), p.name
