@@ -15,14 +15,14 @@
 
 ## The product in one paragraph
 
-A household head installs one whole-home electrical sensor (2 s sampling, power + current harmonics). A NILM model splits the signal into appliances. A LightGBM forecaster predicts each appliance's kWh for the next week against the weather. A deterministic simulator prices a fixed menu of behaviour changes (the ATL, Annex A) under the real DTE time-of-use tariff. Gemini turns the top 3 priced actions into spoken sentences on a Voice tab. A "take action" tap moves the (simulated) thermostat. A week later the verifier checks whether the saving appeared and scores each action type, and the next week's ranking uses that score. For MHacks the sensor is a replay of the Dinar et al. NILM dataset stitched into a multi-week synthetic timeline.
+A household head installs one whole-home electrical sensor (2 s sampling, power + current harmonics). A NILM model splits the signal into appliances. A LightGBM forecaster predicts each appliance's kWh for the next week against the weather. A deterministic simulator prices a fixed menu of behaviour changes (the ATL, Annex A) under the real DTE time-of-use tariff. Gemini turns the top 3 priced actions into plain-language sentences on an Actions tab, each with a "Take action" button (viable actions only). The tap accepts the action and, for thermostat actions, moves the (simulated) thermostat. A week later the verifier checks whether the saving appeared and scores each action type, and the next week's ranking uses that score. For MHacks the sensor is a replay of the Dinar et al. NILM dataset stitched into a multi-week synthetic timeline.
 
 ## Files in this folder
 
 | File | What it is |
 |---|---|
 | `TRS-HOMEWATT-001.docx` / `.md` | The full requirements spec, v0.2. 20 components (CMP-01 to CMP-20) plus CMP-00, ~120 requirements, Annex A (ATL). **Read this first, fully.** |
-| `household-energy-flowchart.png` / `.svg` | Architecture flowchart. **Out of date:** does not yet show CMP-19 (actuator), CMP-20 (narrator), the Voice tab, or the weekly feedback loop. Redraw after scaffolding. |
+| `household-energy-flowchart.png` / `.svg` | Architecture flowchart. **Out of date:** does not yet show CMP-19 (actuator), CMP-20 (narrator), the Actions tab, or the weekly feedback loop. Redraw after scaffolding. |
 | `CLAUDE.md` | Project memory for Claude Code. Short version of this file plus build conventions. |
 | `HANDOFF.md` | This file. |
 
@@ -34,7 +34,7 @@ Dataset: https://github.com/fariddinar/nilm-dataset (cite Dinar, Paris, Busvelle
 1. **TRS-SYS-01:** no ML or AI component ever emits a dollar or CO₂ figure. All costing is `Σ kWh × rate(ts)` in CMP-15 from the CMP-04 tariff table.
 2. **TRS-SYS-03 (rewritten today):** devices change state only on an explicit user tap on a priced action, within bounds, with 24 h undo. Never on a schedule or a forecast.
 3. **TRS-SYS-07:** every ML model is evaluated on a split that shares no recording session with training. Never shuffle 2 s samples. Forecaster uses a time-ordered 80/20 split.
-4. **Gemini is the narrator only (CMP-20).** It receives structured action records, rewrites them as sentences, and every number in its output must appear verbatim in its input or the statement is discarded. It never proposes actions. Call it "narrator" or "Advisor" in the pitch, not "agent".
+4. **Gemini is the narrator only (CMP-20).** It receives structured action records, rewrites them as sentences, and every number in its output must appear verbatim in its input or the statement is discarded. It never proposes actions. Call it "narrator" or "Advisor" in the pitch, not "agent". Its sentences are text on the Actions tab; nothing is read aloud (v0.4).
 5. **Feedback loop is deterministic (option 1).** CMP-18 computes a per-household, per-action_type success score weekly; CMP-13 ranks by `saving_usd × (0.5 + score)`; Gemini only phrases. Cold start: first week ranks by saving alone, `first_week=true` passed to the narrator.
 6. **The ATL (Annex A) is the complete action space.** Six templates. The simulator prices every applicable one and keeps the top 3. Adding a template = TRS revision + YAML change.
 7. **HVAC is synthesized** from weather by a thermostat model in CMP-06 (3 kW compressor, 24 °C setpoint, 4 h lag, cooling only). Its NILM metrics are labelled "synthetic HVAC" everywhere.
@@ -50,13 +50,13 @@ Python 3.11 for everything server-side. **SpacetimeDB on Maincloud (database `ho
 
 1. Repo layout, SpacetimeDB module (`spacetimedb/src/schema.ts`) with every table in the TRS, `pyproject.toml`. DONE 2026-10-03.
 2. **CMP-00:** clone the dataset, extract activations per appliance (sub-meter > 10 W for ≥ 3 samples, 5-sample margin), write the session split file, exclude 05-21. Log activation counts. DONE; see `data/library/manifest.json`. Dataset surprises: the fridge is a constant 58 W (never cycles), the lamp is under 10 W, iron activations are thermostat pulses.
-3. **CMP-06:** synthetic timeline generator incl. the thermostat model and a fault script. Seeded, reproducible. Output = 37-field aggregate + per-appliance ground truth. DONE; demo fault is provisionally a +40% fridge power fault (decision pending, see memory).
+3. **CMP-06:** synthetic timeline generator incl. the thermostat model and a fault script. Seeded, reproducible. Output = 37-field aggregate + per-appliance ground truth. DONE; demo fault is a +40% fridge power fault (decided 2026-10-03; the dataset fridge never cycles).
 4. **CMP-05 + CMP-07 + CMP-08:** ingestion with replay at N× speed, batched reducer calls, gap detection. Verify integral-based hourly kWh. DONE against Maincloud (`tests/module/test_live_store.py`).
 5. **CMP-09:** NILMTK CO baseline first (no training), then seq2point. Report per-appliance MAE / F1 / energy ratio on the 3 held-out sessions. Harmonics ablation.
 6. **CMP-04 + CMP-11 + CMP-13 + Annex A YAML:** tariff table with seasons, LightGBM vs seasonal-naive, simulator with parameter search.
 7. **CMP-15 + CMP-16 + CMP-17:** API, five-panel dashboard, action ledger.
-8. **CMP-12, CMP-18, CMP-19, CMP-20:** anomaly detector, weekly verifier, simulated thermostat, Gemini narrator + Voice tab.
-9. Demo script: replay ≥ 3 synthetic weeks in July before judges see it, inject a fridge fault at day 12, confirm the health alert fires on day 13–14.
+8. **CMP-12, CMP-18, CMP-19, CMP-20:** anomaly detector, weekly verifier, simulated thermostat, Gemini narrator + Actions tab (Take action buttons; speech removed 2026-10-03, TRS v0.4).
+9. Demo script: replay ≥ 3 synthetic weeks in July before judges see it, inject the fridge power fault (+40% draw) at day 12, confirm the health alert (mean_on_watts) fires on day 13–14.
 
 ## Open issues carried over
 
@@ -68,10 +68,10 @@ Python 3.11 for everything server-side. **SpacetimeDB on Maincloud (database `ho
 | OI-06 | One scheduler or three cron entries. | Backend lead |
 | OI-07 | Single hard-coded household in V1; no multi-household auth. | Deferred |
 | OI-08 | No Nest device; SDM adapter untested. | If a device turns up |
-| OI-09 | Gemini API key/quota unconfirmed. Alexa not started; browser speech synthesis in V1. | Backend lead, before the event |
+| OI-09 | Gemini API key/quota unconfirmed. No voice channel in V1 (TRS v0.4). | Backend lead, before the event |
 
 ## Housekeeping still owed
 
-- Redraw the flowchart with CMP-19, CMP-20, Voice tab, weekly loop.
+- Redraw the flowchart with CMP-19, CMP-20, Actions tab, weekly loop, SpacetimeDB.
 - Re-check the DTE rate card the day the tariff YAML is loaded (a summer increase was reported after the card's Feb 2025 date).
 - Get a Gemini key and test JSON-schema output on a 3-action payload.

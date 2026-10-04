@@ -10,7 +10,7 @@ Read `HANDOFF.md` first, then `TRS-HOMEWATT-001.md` in full, before writing any 
 
 ## Source of truth
 
-`TRS-HOMEWATT-001.md` (v0.3). Every module maps to a CMP-nn; every behaviour maps to a TRS-nn-mm. Reference the requirement ID in commit messages and docstrings. Bump the revision history table when the TRS changes.
+`TRS-HOMEWATT-001.md` (v0.4). Every module maps to a CMP-nn; every behaviour maps to a TRS-nn-mm. Reference the requirement ID in commit messages and docstrings. Bump the revision history table when the TRS changes.
 
 ## Hard rules (from the TRS, see HANDOFF.md §Settled decisions)
 

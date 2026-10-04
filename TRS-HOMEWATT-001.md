@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.3 — DRAFT |
+| Version | 0.4 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -388,7 +388,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | Activation library | CMP-00 (extracted from the Dinar et al. dataset) | Per appliance: list of activations, each a 2 s series of all 37 fields |
 | Schedule profile | YAML per synthetic household | Per appliance: daily use count, preferred hours, weekday/weekend weights |
 | Hourly weather | CMP-03 | Drives the usage probability of temperature-sensitive loads |
-| Fault script (optional) | Demo operator | {appliance\_id, start\_day, kind, magnitude}, e.g. fridge duty cycle +40% from day 12 |
+| Fault script (optional) | Demo operator | {appliance\_id, start\_day, kind, magnitude}, kind ∈ {power, duty\_cycle}; the demo uses fridge power +40% from day 12 (the dataset fridge draws a constant ~58 W and never cycles, so a duty-cycle fault cannot be built from real activations) |
 
 **Outputs**
 
@@ -715,14 +715,14 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 > Rationale: one hot day lengthens fridge cycles legitimately. Two days in a row with the baseline already weather-mixed is a change in the appliance.
 
 - TRS-12-04 — The detector shall run only on appliances with at least 10 baseline days. Below that it shall record "insufficient history".
-- TRS-12-05 — Alert text shall state the feature and the magnitude in plain terms ("fridge is running 38% longer than its usual") and shall not name a cause. Suggested causes, if shown, are a static lookup by appliance type in CMP-16.
+- TRS-12-05 — Alert text shall state the feature and the magnitude in plain terms ("fridge is drawing 38% more than its usual") and shall not name a cause. Suggested causes, if shown, are a static lookup by appliance type in CMP-16.
 - TRS-12-06 — An alert shall carry severity: watch (3 < |z| ≤ 5) or act (|z| > 5).
 
 **Error handling.** MAD = 0 (constant baseline): use 0.01 × median as the scale and log the substitution.
 
 **Verification criteria**
 
-- Replay a CMP-06 timeline with a fridge fault at day 12 (+40% duty); confirm an alert on day 13 or 14 and none before day 12.
+- Replay a CMP-06 timeline with a fridge fault at day 12 (+40% mean\_on\_watts); confirm an alert on day 13 or 14 and none before day 12.
 - Replay with no fault; confirm zero alerts over 14 days.
 
 **Dependencies.** CMP-06 (for test), CMP-08.
@@ -770,7 +770,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 * TRS-13-11 — Each issued action shall carry week\_id and shall record the success\_score used at ranking time, so the ranking can be audited later.
 
 - TRS-13-12 — Where a template declares a search range for a parameter (Annex A, `search`), the simulator shall evaluate every value in the range at the declared step and keep the value with the greatest saving\_usd. The chosen value shall be recorded in params.
-- TRS-13-13 — Cold start: in a household's first week, or for any action\_type with a null success score, ranking shall be by saving\_usd alone, and the narrator input shall carry first\_week=true so the Voice tab can say the Tracker is still learning what works for this household.
+- TRS-13-13 — Cold start: in a household's first week, or for any action\_type with a null success score, ranking shall be by saving\_usd alone, and the narrator input shall carry first\_week=true so the Actions tab can say the Tracker is still learning what works for this household.
 
 **Error handling.** A template referencing an appliance the household lacks is skipped silently.
 
@@ -913,7 +913,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-16-09 — The dashboard shall render usably at 400 px width.
 - TRS-16-10 — The dashboard shall contain no costing or modelling logic; every number shall arrive from CMP-15 as displayed.
 
-* TRS-16-11 — The dashboard shall have a second tab, Voice, listing the narrator's statements (CMP-20) newest first, each with its source action\_id, its dollar and CO₂ figures as computed by CMP-15, and a play control that reads the statement aloud using the browser's speech synthesis. Amazon Alexa is the named production channel and is not built in V1 (OI-09).
+* TRS-16-11 — The dashboard shall have a second tab, Actions, listing the narrator's statements (CMP-20) in CMP-13 rank order, each with its source action\_id and its dollar and CO₂ figures as computed by CMP-15. A right-hand column named "Take action" shall hold one button per statement whose action is viable: status proposed, saving\_usd at or above the TRS-13-04 floor, not dismissed, not suppressed. A non-viable row shows no button. Tapping the button is the user tap of TRS-SYS-03: it accepts the action (TRS-17-02) and, for an action whose template names an actuator, opens the CMP-19 confirm step (TRS-19-08). No speech synthesis and no voice channel in V1 (changed in v0.4).
 
 **Error handling.** API unreachable: show the last successful payload with its age; never a blank page.
 
@@ -1078,11 +1078,11 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | Field | Value |
 | --- | --- |
 | Class | AI |
-| Flowchart element | Not yet on the flowchart; sits between CMP-13 and the Voice tab |
+| Flowchart element | Not yet on the flowchart; sits between CMP-13 and the Actions tab |
 | Implementing tool | Google Gemini via the Gemini API with a JSON response schema, behind a thin NarratorBackend protocol |
 | Owner | Backend lead |
 
-**Purpose.** Third sub-component of the Advisor. Turns the simulator's structured actions and the forecaster's spike into short spoken-style sentences a household would actually say to each other. The only AI-classified component in the Tracker.
+**Purpose.** Third sub-component of the Advisor. Turns the simulator's structured actions and the forecaster's spike into short plain-language sentences a household would actually say to each other, shown on the Actions tab. The only AI-classified component in the Tracker.
 
 **Inputs**
 
@@ -1097,7 +1097,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 | Name | Destination | Format |
 | --- | --- | --- |
-| Statement | CMP-08 statements, CMP-16 Voice tab | {statement\_id, action\_id or spike ref, text, model\_version, created\_at} |
+| Statement | CMP-08 statements, CMP-16 Actions tab | {statement\_id, action\_id or spike ref, text, model\_version, created\_at} |
 
 **Requirements**
 
@@ -1116,7 +1116,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 * TRS-20-09 — The narrator may reference the outcome history in a statement ("last week's dryer change saved 8.20") and shall use it to choose tone and framing only. TRS-20-02 and TRS-20-03 apply to history figures as to all others: every number verbatim from the input, no action originated.
 * TRS-20-10 — Where an action was not\_verified, the narrator shall not claim or imply it saved money.
 
-**Error handling.** Provider unreachable: the Voice tab shows the action's assumption\_text from CMP-13 as a fallback, marked unnarrated. Never block the main tab on the narrator.
+**Error handling.** Provider unreachable: the Actions tab shows the action's assumption\_text from CMP-13 as a fallback, marked unnarrated; the Take action button is unaffected. Never block the main tab on the narrator.
 
 **Verification criteria**
 
@@ -1175,7 +1175,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | OI-06 | Cadence mismatch. The forecaster runs hourly; the anomaly detector runs daily; the dashboard polls every 5 s. Whether one scheduler (APScheduler) or three cron entries is undecided. | CMP-11, CMP-12 | Backend lead |
 | OI-07 | Authentication. V1 may use a single hard-coded household. Multi-household auth is specified nowhere in this document. | CMP-14, CMP-15 | Deferred |
 | OI-08 | No Nest device is available to the team. V1 ships the simulated adapter only; the SDM adapter is specified but untested. Google Device Access enrollment (fee, OAuth, project setup) has not been started and its current terms are unverified. | CMP-19 | Backend lead, if a device turns up |
-| OI-09 | Voice channel. The narrator is Gemini (decided). Gemini API key and quota for the event are not yet confirmed. Alexa delivery needs an Alexa Skill, account linking, and certification; none is started. V1 uses browser speech synthesis on the Voice tab and names Alexa as the production channel in the pitch. | CMP-20, CMP-16 | Backend lead, before the event |
+| OI-09 | Narrator access. The narrator is Gemini (decided). Gemini API key and quota for the event are not yet confirmed. Voice delivery (speech synthesis, Alexa) was removed from scope in v0.4; the statements are text on the Actions tab. | CMP-20, CMP-16 | Backend lead, before the event |
 
 ## 8. Deferred scope
 
@@ -1234,4 +1234,5 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | 0.1 | 2026-10-03 | S. Shastry | Initial draft from the MHacks 26 architecture flowchart. Not baselined. |
 | 0.2 | 2026-10-03 | S. Shastry | TRS-SYS-03 rewritten to permit tap-only device control; CMP-19 Device Actuator added (simulated thermostat V1, Nest SDM production). CMP-11/13 grouped as the Advisor; CMP-20 Gemini Narrator added with AI class; Voice tab (TRS-16-11). CMP-18 promoted to V1 with weekly success scores feeding CMP-13 ranking (TRS-13-08 to 13-13). HVAC synthesized from weather (TRS-06-07 to 06-09, TRS-09-09). DTE D1.11 recorded as reference tariff. Annex A ATL added. OI-01, OI-02 resolved; OI-08, OI-09 added. Not baselined. |
 | 0.2.1 | 2026-10-03 | Claude (for S. Shastry) | Scaffold findings, no requirement change: TRS-00-03 ratio for session 05-21 corrected from 5.33 to the measured 1.18 and the sub-meter coverage cause recorded. Open question raised to S. Shastry: the dataset fridge draws a constant ~58 W and never cycles, so the CMP-06/CMP-12 "fridge duty cycle +40%" example cannot be built from real activations; demo fault provisionally a +40% power fault (mean_on_watts). Not baselined. |
-| 0.3 | 2026-10-03 | Claude (for S. Shastry) | Data store changed from TimescaleDB to SpacetimeDB (Maincloud, TypeScript module) by decision of S. Shastry. TRS-SYS-06 rewritten; CMP-04/05/07/08/15/17 implementing tools restated; TRS-05-04/05, TRS-07-01/02/03/05, TRS-08-02/03/04, TRS-15-06 restated in reducer terms; TRS-07-04 retired. Timestamps stored as microsecond integers. Not baselined. |
+| 0.3 | 2026-10-03 | Claude (for S. Shastry) | Demo fridge fault decided by S. Shastry as a +40% power fault (CMP-06 input, TRS-12-05 example, CMP-12 verification restated); the dataset fridge never cycles. Data store changed from TimescaleDB to SpacetimeDB (Maincloud, TypeScript module) by decision of S. Shastry. TRS-SYS-06 rewritten; CMP-04/05/07/08/15/17 implementing tools restated; TRS-05-04/05, TRS-07-01/02/03/05, TRS-08-02/03/04, TRS-15-06 restated in reducer terms; TRS-07-04 retired. Timestamps stored as microsecond integers. Not baselined. |
+| 0.4 | 2026-10-03 | Claude (for S. Shastry) | Decision of S. Shastry: the Voice tab becomes the Actions tab (TRS-16-11 rewritten): ranked plain-language suggestions with a "Take action" button column, buttons only on viable actions; speech synthesis and Alexa removed (OI-09 restated). CMP-20 narrator unchanged as the writer of the sentences. Not baselined. |
