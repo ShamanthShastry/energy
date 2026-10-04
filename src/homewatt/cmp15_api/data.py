@@ -208,7 +208,7 @@ def summary(c: Ctx) -> dict:
         "vs_last_month_note": None if vs is not None else f"No data for {lm_start.strftime('%B')}",
         "daily": series,
         "ticks": nice_ticks(ymax),
-        "fixed_charge_note": f"Excludes the {d.money(c.tariff.fixed_usd_per_month)} monthly service charge",
+        "fixed_charge_note": f"Not counting the utility's fixed {d.money(c.tariff.fixed_usd_per_month)} monthly service charge",
     }
 
 
@@ -410,6 +410,7 @@ def actions(c: Ctx) -> dict:
         score = float(r["success_score"])
         rank_score = float(r["saving_usd"]) * (1.0 if (first_week or score < 0) else (0.5 + score))
         text, unnarrated = sentences.get(r["action_id"], (d.plain_change(r["assumption_text"]), True))
+        text = d.fahrenheit_text(text)
         viable = r["status"] == "proposed" and month >= 1.0 and r["action_type"] not in suppressed
         items.append({
             "action_id": r["action_id"], "appliance_label": labels.get(r["appliance_id"], r["appliance_id"]),
@@ -458,7 +459,7 @@ def savings(c: Ctx) -> dict:
         items.append({
             "action_id": r["action_id"], "week_label": f"Week of {monday.strftime('%b %-d')}", "this_week": r["week_id"] == week,
             "appliance_label": labels.get(r["appliance_id"], r["appliance_id"]),
-            "sentence": sentences.get(r["action_id"], (d.plain_change(r["assumption_text"]), True))[0],
+            "sentence": d.fahrenheit_text(sentences.get(r["action_id"], (d.plain_change(r["assumption_text"]), True))[0]),
             "outcome": r["status"] if r["status"] != "dismissed" else ("expired" if r["status_reason"] == "expired" else "dismissed"),
             "outcome_label": outcome, "detail": detail,
         })
@@ -517,10 +518,10 @@ def schedule_view(c: Ctx, base_c: float) -> dict | None:
     return {
         "schedule_id": s["schedule_id"], "state": state, "error": s["error"],
         "title": "Precool schedule",
-        "lines": [f"{d.hour12(s['pre_start_hour'])}–{d.hour12(s['peak_start_hour'])}: {d.celsius(pre_c)} °C, cooling ahead of the peak",
-                  f"{d.hour12(s['peak_start_hour'])}–{d.hour12(s['peak_end_hour'])}: {d.celsius(peak_c)} °C, resting through the peak"],
+        "lines": [f"{d.hour12(s['pre_start_hour'])}–{d.hour12(s['peak_start_hour'])}: {d.fahrenheit(pre_c)} °F, cooling ahead of the peak",
+                  f"{d.hour12(s['peak_start_hour'])}–{d.hour12(s['peak_end_hour'])}: {d.fahrenheit(peak_c)} °F, resting through the peak"],
         "days_label": days, "until_label": f"through {last_day.strftime('%a %b %-d')}",
-        "now_display": d.celsius(now_c), "now_differs": abs(now_c - base_c) > 1e-6,
+        "now_display": d.fahrenheit(now_c), "now_differs": abs(now_c - base_c) > 1e-6,
         "can_undo": bool(state == "on" and s["status"] == "installed" and undo_until > now_us),
         "undo_until_label": from_us(undo_until).tz_convert(c.tz).strftime("%a %-I:%M %p"),
     }
@@ -540,10 +541,12 @@ def thermostat(c: Ctx) -> dict:
         can_undo = a["result"] == "applied" and a["actor"] == "user" and expires > us(c.now)
         last = {"actuation_id": a["actuation_id"], "actor": a["actor"], "result": a["result"], "error": a["error"],
                 "previous_c": float(a["previous_c"]), "applied_c": float(a["applied_c"]),
+                "previous_display": d.fahrenheit(float(a["previous_c"])), "applied_display": d.fahrenheit(float(a["applied_c"])),
                 "at_label": from_us(int(a["ts_us"])).tz_convert(c.tz).strftime("%a %b %-d, %-I:%M %p"),
                 "can_undo": bool(can_undo),
                 "undo_until_label": from_us(expires).tz_convert(c.tz).strftime("%a %-I:%M %p") if expires else None}
     return {"present": True, "label": labels.get(s["appliance_id"], s["appliance_id"]), "setpoint_c": float(s["current_setpoint_c"]),
+            "setpoint_display": d.fahrenheit(float(s["current_setpoint_c"])),
             "mode": s["mode"], "simulated": bool(s["simulated"]), "last_change": last,
             "schedule": schedule_view(c, float(s["current_setpoint_c"]))}
 

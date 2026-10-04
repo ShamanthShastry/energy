@@ -68,3 +68,14 @@ def test_v0_12_money_carries_its_symbol_and_the_frontend_spells_out_no_units():
     assert money(4.56) == "$4.56" and money(-1.2) == "−$1.20"
     for p in (REPO / "dashboard" / "src").rglob("*.tsx"):
         assert "dollars" not in p.read_text(), p.name
+
+
+def test_trs_03_03_every_temperature_is_shown_in_fahrenheit():
+    from homewatt.display import fahrenheit, fahrenheit_delta, fahrenheit_text
+
+    assert fahrenheit(26.0) == "79" and fahrenheit(27.0) == "81" and fahrenheit_delta(1.0) == "2" and fahrenheit_delta(0.5) == "1"
+    assert fahrenheit_text("The thermostat is set 2 °C warmer, to 27 °C, all week.") == "The thermostat is set 4 °F warmer, to 81 °F, all week."
+    assert fahrenheit_text("the water heater is turned down to 49 °C (120 °F)") == "the water heater is turned down to 120 °F"
+    assert fahrenheit_text("cools 0.5 °C from 2 to 3 pm, then sits 1 °C warmer") == "cools 1 °F from 2 to 3 pm, then sits 2 °F warmer"
+    for p in (REPO / "dashboard" / "src").rglob("*.tsx"):
+        assert "°C" not in p.read_text(), p.name

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from homewatt.cmp15_api import data
 from homewatt.config import REPO_ROOT
+from homewatt.display import fahrenheit
 
 log = logging.getLogger(__name__)
 DIST = REPO_ROOT / "dashboard" / "dist"
@@ -235,12 +236,13 @@ def post_take(action_id: str):
             raise HTTPException(409, str(e)) from e
         return ok({"kind": "thermostat", "preview": {
             "device_label": p.device_label, "current_c": p.current_c, "requested_c": p.requested_c, "applied_c": p.applied_c,
+            "current_display": fahrenheit(p.current_c), "requested_display": fahrenheit(p.requested_c), "applied_display": fahrenheit(p.applied_c),
             "clamped": p.clamped, "simulated": p.simulated, "saving_month_display": money(per_month(float(a["saving_usd"]))),
         }})
     if data.take_kind(a.to_dict()) == "schedule":  # v0.11 TRS-19-10: preview the schedule, change nothing
         import pandas as pd
 
-        from homewatt.display import celsius, hour12
+        from homewatt.display import hour12
 
         try:
             p = _actuator(c).preview_schedule(action_id)
@@ -248,8 +250,8 @@ def post_take(action_id: str):
             raise HTTPException(409, str(e)) from e
         last_day = p.valid_until.tz_convert(c.tz) - pd.Timedelta(seconds=1)
         return ok({"kind": "schedule", "preview": {
-            "device_label": p.device_label, "current_display": celsius(p.current_c),
-            "lines": [f"{hour12(p.pre_start)}–{hour12(p.peak_start)}: {celsius(p.pre_c)} °C", f"{hour12(p.peak_start)}–{hour12(p.peak_end)}: {celsius(p.peak_c)} °C"],
+            "device_label": p.device_label, "current_display": fahrenheit(p.current_c),
+            "lines": [f"{hour12(p.pre_start)}–{hour12(p.peak_start)}: {fahrenheit(p.pre_c)} °F", f"{hour12(p.peak_start)}–{hour12(p.peak_end)}: {fahrenheit(p.peak_c)} °F"],
             "days_label": "weekdays" if p.weekdays_only else "every day", "until_label": last_day.strftime("%a %b %-d"),
             "simulated": p.simulated, "saving_month_display": money(per_month(float(a["saving_usd"]))),
         }})
@@ -274,7 +276,7 @@ def post_confirm(action_id: str):
         r = _actuator(c).confirm(action_id)
     except ActuationRefused as e:
         raise HTTPException(409, str(e)) from e
-    return ok({"kind": "thermostat", "result": r.result, "previous_c": r.previous_c, "applied_c": r.applied_c,
+    return ok({"kind": "thermostat", "result": r.result, "previous_c": r.previous_c, "applied_c": r.applied_c, "applied_display": fahrenheit(r.applied_c),
                "actuation_id": r.actuation_id, "error": r.error})
 
 
@@ -300,7 +302,7 @@ def post_undo(actuation_id: str):
         r = _actuator(c).undo(actuation_id)
     except ActuationRefused as e:
         raise HTTPException(409, str(e)) from e
-    return ok({"result": r.result, "applied_c": r.applied_c, "actuation_id": r.actuation_id, "error": r.error})
+    return ok({"result": r.result, "applied_c": r.applied_c, "applied_display": fahrenheit(r.applied_c), "actuation_id": r.actuation_id, "error": r.error})
 
 
 @app.post("/api/alerts/{alert_id}/ack")

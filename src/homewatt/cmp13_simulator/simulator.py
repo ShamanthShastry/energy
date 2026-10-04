@@ -185,12 +185,15 @@ def rank(actions: list[PricedAction], limit: int = MAX_ACTIONS) -> list[PricedAc
 
 
 def _assume(template: Template, app: ApplianceInfo, params: dict) -> str:
-    from homewatt.display import hour12, hour_range
+    from homewatt.display import fahrenheit, fahrenheit_delta, hour12, hour_range
 
     fmt = {"appliance": app.label, **{k: (int(v) if isinstance(v, float) and float(v).is_integer() else v) for k, v in params.items()}}
     for k in ("to_hour", "pre_start", "peak_start", "peak_end"):  # times as people say them (v0.11.1)
         if k in params:
             fmt[f"{k}_12"] = hour12(params[k])
+    for k, v in params.items():  # °F twins of every Celsius parameter, for the sentences (v0.13.2)
+        if k.endswith("_c") and isinstance(v, (int, float)):
+            fmt[k[:-2] + "_f"] = fahrenheit_delta(v) if k in ("delta_c", "pre_cool_c", "peak_warm_c") else fahrenheit(v)
     if "pre_start" in params and "peak_start" in params:
         fmt["pre_range"] = hour_range(params["pre_start"], params["peak_start"])
     if "peak_start" in params and "peak_end" in params:

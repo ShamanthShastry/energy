@@ -20,7 +20,7 @@ templates:
     requires_tou: false
     requires_alert: false
     actuator: thermostat
-    assumption: "assumes the thermostat is set {delta_c} °C warmer, to {target_setpoint_c} °C, all week"
+    assumption: "assumes the thermostat is set {delta_f} °F warmer, to {target_setpoint_f} °F, all week"
 
   - action_type: hvac_precool        # v0.11: a tap installs this as a weekday schedule (TRS-19-10..12)
     shape: setpoint
@@ -32,7 +32,7 @@ templates:
     requires_tou: true
     requires_alert: false
     actuator: thermostat
-    assumption: "assumes on weekdays the thermostat cools {pre_cool_c} °C from {pre_range}, then sits {peak_warm_c} °C warmer from {peak_range}"
+    assumption: "assumes on weekdays the thermostat cools {pre_cool_f} °F from {pre_range}, then sits {peak_warm_f} °F warmer from {peak_range}"
 
   - action_type: water_heater_setpoint
     shape: trim
@@ -40,7 +40,7 @@ templates:
     params: {factor: 0.90}
     requires_tou: false
     requires_alert: false
-    assumption: "assumes the water heater is turned down to 49 °C (120 °F)"
+    assumption: "assumes the water heater is turned down to 120 °F"
 
   - action_type: trim_standby
     shape: trim

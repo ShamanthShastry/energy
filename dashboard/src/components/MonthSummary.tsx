@@ -88,7 +88,7 @@ export function MonthSummary({ s }: { s: Summary | null }) {
         <div className="day-box" aria-live="polite">
           <div className="day-head">
             <strong>{day ? day.label : 'Loading…'}</strong>
-            {day ? <span className="muted"> · {day.total_display} · {day.source_label === 'estimated' && day.nilm_model_version ? `estimated by ${day.nilm_model_version}` : day.source_label}</span> : null}
+            {day ? <span className="muted"> · {day.total_display}</span> : null}
             <button className="btn btn-quiet day-close" onClick={() => setSel(null)} aria-label="Close the day rundown">Close</button>
           </div>
           {err ? <p className="notice notice-crit">{err}</p> : day ? <ApplianceRows items={day.items} /> : null}

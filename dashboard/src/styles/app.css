@@ -99,6 +99,8 @@ line.ref { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; }
 .bar-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-value .muted { font-weight: 400; }
 .bar-detail { font-size: 13px; padding: 0 0 12px 154px; display: grid; gap: 4px; }
+.link-inline { background: none; border: 0; padding: 0; font: inherit; color: var(--green-700); font-weight: 600; cursor: pointer; }
+.bar-more { display: grid; gap: 4px; padding-top: 4px; }
 .compare { display: grid; grid-template-columns: minmax(0, auto) 1fr; gap: 12px; align-items: center; margin-top: 4px; }
 .compare-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .compare .bar-track { height: 6px; }

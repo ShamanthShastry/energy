@@ -115,7 +115,7 @@ def test_trs_13_12_search_keeps_the_best_value_and_records_it():
     sp = next(a for a in acts if a.action_type == "hvac_setpoint_away")
     assert sp.params["delta_c"] == 3  # largest delta saves most
     assert sp.params["target_setpoint_c"] == 27.0 and 0 < sp.params["setpoint_factor"] < 1
-    assert sp.actuator == "thermostat" and "3 °C warmer" in sp.assumption_text
+    assert sp.actuator == "thermostat" and "5 °F warmer, to 81 °F" in sp.assumption_text  # 3 °C = 5.4 °F, 27 °C = 80.6 °F
 
 
 def test_annex_a3_setpoint_outside_device_bounds_is_not_evaluated():
@@ -146,7 +146,7 @@ def test_annex_a3_precool_is_priced_with_the_thermostat_model_running_the_schedu
     cf = shapes.schedule(kwh, weather, ThermostatParams(), 24.0, DTE, 15, 19, int(p["pre_hours"]), p["pre_cool_c"], p["peak_warm_c"], 18.0, 27.0, 2.0)
     assert pre.saving_usd == pytest.approx(cost(kwh, DTE).usd - cost(cf, DTE).usd, abs=1e-6)  # TRS-13-02
     assert pre.assumption_text.startswith("assumes on weekdays the thermostat cools")
-    assert f"to 3 pm, then sits {int(p['peak_warm_c'])} °C warmer from 3 to 7 pm" in pre.assumption_text
+    assert "to 3 pm, then sits" in pre.assumption_text and "°F warmer from 3 to 7 pm" in pre.assumption_text and "°C" not in pre.assumption_text
 
 
 def test_trs_13_12_precool_searches_length_and_depth_together_and_keeps_the_best():

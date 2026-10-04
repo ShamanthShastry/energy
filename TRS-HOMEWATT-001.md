@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.13.1 — DRAFT |
+| Version | 0.13.2 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -1273,3 +1273,4 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | 0.12.1 | 2026-10-04 | Claude (for S. Shastry) | Visual restyle of CMP-16 after the Tesla energy app (light mode, existing palette), at S. Shastry's request; recorded in `docs/design-tokens.md`. Past weeks' statements re-narrated once with the v0.12 wording (TRS-20-08: old ones superseded, kept). No requirement change. Not baselined. |
 | 0.13 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: seq2point `s2p-v3` deployed as the splitter (OI-03 resolved; CMP-09 implementing tool and TRS-09-10 restated; `data/models/deployed.json` names the deployed version). Inference runs in numpy from saved weights because PyTorch and LightGBM crash one macOS process together. Not baselined. |
 | 0.13.1 | 2026-10-04 | Claude (for S. Shastry) | At S. Shastry's request: product title shown as "Synergy"; opening animation; the simulated-feed and demo-clock status line removed from the header, marker kept in the footer (TRS-16-07 restated). No requirement change. Not baselined. |
+| 0.13.2 | 2026-10-04 | Claude (for S. Shastry) | At S. Shastry's request: every temperature shown in °F (TRS-03-03 display conversion in `display.py`; Annex A sentences and the narrator examples written in °F, older text converted on display); appliance rows show only kWh and the source word, with the model, held-out error and simulated-feed comparison behind a "Details" link (the TRS-16-06 details view); the bill's service-charge note reworded. No requirement change. Not baselined. |

@@ -31,9 +31,9 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
     if (!confirm) return;
     const id = confirm.id;
     setConfirm(null);
-    const r = await run(id, () => api.post<{ result: string; applied_c: number; error: string }>(`/api/actions/${id}/confirm`));
+    const r = await run(id, () => api.post<{ result: string; applied_display: string; error: string }>(`/api/actions/${id}/confirm`));
     if (r) setMsg(r.result === 'applied'
-      ? { tone: 'green', text: `Thermostat set to ${r.applied_c} °C. You can undo this for 24 hours.` }
+      ? { tone: 'green', text: `Thermostat set to ${r.applied_display} °F. You can undo this for 24 hours.` }
       : { tone: 'crit', text: `The thermostat did not change: ${r.error}` });
   }
   async function confirmSchedule() {
@@ -54,8 +54,8 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
     if (r) setMsg({ tone: 'neutral', text: 'Dismissed. Another suggestion may take its place at the next update.' });
   }
   async function undo(actuationId: string) {
-    const r = await run(actuationId, () => api.post<{ result: string; applied_c: number }>(`/api/actuations/${actuationId}/undo`));
-    if (r) setMsg({ tone: 'neutral', text: `Undone. Thermostat back to ${r.applied_c} °C.` });
+    const r = await run(actuationId, () => api.post<{ result: string; applied_display: string }>(`/api/actuations/${actuationId}/undo`));
+    if (r) setMsg({ tone: 'neutral', text: `Undone. Thermostat back to ${r.applied_display} °F.` });
   }
 
   return (
@@ -63,12 +63,12 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
       {t?.present ? (
         <Card id="thermostat" title="Thermostat" aside={t.simulated ? <Chip tone="sim" icon="◌">Simulated device</Chip> : undefined}>
           <div className="thermo">
-            <div className="stat"><div className="stat-value green">{t.setpoint_c}<span className="unit">°C</span></div><div className="caption">Cooling setpoint</div></div>
+            <div className="stat"><div className="stat-value green">{t.setpoint_display}<span className="unit">°F</span></div><div className="caption">Cooling setpoint</div></div>
             {t.last_change ? (
               <div className="small">
                 {t.last_change.result === 'failed'
                   ? <Chip tone="crit" icon="!">Change failed</Chip>
-                  : <>Last change {t.last_change.at_label}: {t.last_change.previous_c} → {t.last_change.applied_c} °C{t.last_change.actor === 'undo' ? ' (undo)' : ''}</>}
+                  : <>Last change {t.last_change.at_label}: {t.last_change.previous_display} → {t.last_change.applied_display} °F{t.last_change.actor === 'undo' ? ' (undo)' : ''}</>}
                 {t.last_change.can_undo ? (
                   <button className="btn btn-quiet" disabled={!!busy} onClick={() => undo(t.last_change!.actuation_id)}>Undo (until {t.last_change.undo_until_label})</button>
                 ) : null}
@@ -83,7 +83,7 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
                 </div>
                 <div className="muted">{t.schedule.days_label} {t.schedule.until_label}</div>
                 <ul className="schedule-lines">{t.schedule.lines.map(l => <li key={l}>{l}</li>)}</ul>
-                {t.schedule.state === 'on' && t.schedule.now_differs ? <div>Right now: {t.schedule.now_display} °C</div> : null}
+                {t.schedule.state === 'on' && t.schedule.now_differs ? <div>Right now: {t.schedule.now_display} °F</div> : null}
                 {t.schedule.can_undo ? (
                   <button className="btn btn-quiet" disabled={!!busy} onClick={() => undoSchedule(t.schedule!.schedule_id)}>Undo (until {t.schedule.undo_until_label})</button>
                 ) : null}
@@ -131,7 +131,7 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
         <div className="modal-back" role="dialog" aria-modal="true" aria-labelledby="sched-h">
           <div className="modal">
             <h2 id="sched-h">Install a precool schedule on the {sched.p.device_label}?</h2>
-            <p>Normally {sched.p.current_display} °C. On {sched.p.days_label} through <strong>{sched.p.until_label}</strong>:</p>
+            <p>Normally {sched.p.current_display} °F. On {sched.p.days_label} through <strong>{sched.p.until_label}</strong>:</p>
             <ul className="schedule-lines">{sched.p.lines.map(l => <li key={l}><strong>{l}</strong></li>)}</ul>
             <p className="muted">The thermostat runs this itself and stops at the end of the week. Expected saving: {sched.p.saving_month_display} a month. You can undo for 24 hours.{sched.p.simulated ? ' This is the simulated thermostat.' : ''}</p>
             <div className="btns">
@@ -146,8 +146,8 @@ export function ActionsTab({ a, t, refresh }: { a: Actions | null; t: Thermostat
         <div className="modal-back" role="dialog" aria-modal="true" aria-labelledby="confirm-h">
           <div className="modal">
             <h2 id="confirm-h">Change the {confirm.p.device_label}?</h2>
-            <p>From <strong>{confirm.p.current_c} °C</strong> to <strong>{confirm.p.applied_c} °C</strong>.
-              {confirm.p.clamped ? <> You asked for {confirm.p.requested_c} °C; your limits allow {confirm.p.applied_c} °C in one step.</> : null}</p>
+            <p>From <strong>{confirm.p.current_display} °F</strong> to <strong>{confirm.p.applied_display} °F</strong>.
+              {confirm.p.clamped ? <> You asked for {confirm.p.requested_display} °F; your limits allow {confirm.p.applied_display} °F in one step.</> : null}</p>
             <p className="muted">Expected saving: {confirm.p.saving_month_display} a month. You can undo for 24 hours.{confirm.p.simulated ? ' This is the simulated thermostat.' : ''}</p>
             <div className="btns">
               <button className="btn btn-primary" onClick={confirmIt}>Confirm</button>

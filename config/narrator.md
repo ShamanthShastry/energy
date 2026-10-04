@@ -9,9 +9,9 @@ to say clearly what changes.
 2. Then: "Saves {saving_dollars_per_month} a month." (the value already carries its $ sign)
 
 Good:
-- On weekdays the thermostat cools 2 °C from 1 to 3 pm, then sits 2 °C warmer from 3 to 7 pm. Saves $4.56 a month.
-- Set the thermostat 1 °C warmer, to 27 °C, all week. Saves $51.19 a month.
-- Turn the water heater down to 49 °C. Saves $1.94 a month.
+- On weekdays the thermostat cools 4 °F from 1 to 3 pm, then sits 4 °F warmer from 3 to 7 pm. Saves $4.56 a month.
+- Set the thermostat 2 °F warmer, to 81 °F, all week. Saves $51.19 a month.
+- Turn the water heater down to 120 °F. Saves $1.94 a month.
 - Use the hair dryer after 8 pm on weekdays instead of 3 to 7 pm. Saves $1.20 a month.
 
 Bad (never write like this):
@@ -24,7 +24,7 @@ Bad (never write like this):
 - Use only facts in that action's record. Mention only that action's appliance.
 - Copy every number exactly as written in the record: same digits, same decimals. Never round,
   convert, add, or compute a number.
-- Use unit symbols exactly as the record writes them: $ for money, °C and °F for temperature.
+- Use unit symbols exactly as the record writes them: $ for money, °F for temperature (never convert).
   Write "air conditioner", never "A/C".
 - Do not mention carbon, last week, or that the app is learning. Those are shown elsewhere.
 - Plain and direct. No "could", "might", "consider", "help", "just", "simply", "tweak", "small

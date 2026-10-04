@@ -49,16 +49,16 @@ export type Savings = {
   verified_total_display: string; promised_total_display: string; counts: Record<string, number>; items: SavingsItem[];
 };
 export type Thermostat = {
-  present: boolean; label?: string; setpoint_c?: number; simulated?: boolean;
+  present: boolean; label?: string; setpoint_c?: number; setpoint_display?: string; simulated?: boolean;
   last_change?: {
-    actuation_id: string; actor: string; result: string; error: string; previous_c: number; applied_c: number;
+    actuation_id: string; actor: string; result: string; error: string; previous_c: number; applied_c: number; previous_display: string; applied_display: string;
     at_label: string; can_undo: boolean; undo_until_label: string | null;
   } | null;
   schedule?: ScheduleView | null;
 };
 export type TakeResult =
   | { kind: 'accepted' }
-  | { kind: 'thermostat'; preview: { device_label: string; current_c: number; requested_c: number; applied_c: number; clamped: boolean; simulated: boolean; saving_month_display: string } }
+  | { kind: 'thermostat'; preview: { device_label: string; current_c: number; requested_c: number; applied_c: number; current_display: string; requested_display: string; applied_display: string; clamped: boolean; simulated: boolean; saving_month_display: string } }
   | { kind: 'schedule'; preview: SchedulePreview };
 export type SchedulePreview = {
   device_label: string; current_display: string; lines: string[]; days_label: string; until_label: string; simulated: boolean; saving_month_display: string;

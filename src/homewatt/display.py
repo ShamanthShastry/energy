@@ -4,6 +4,7 @@ both use it, so a figure on the dashboard and in a sentence is the same string (
 from __future__ import annotations
 
 import math
+import re
 
 DAYS_PER_MONTH = 30.4375
 
@@ -58,6 +59,32 @@ def celsius(x: float | None) -> str:
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return "–"
     return f"{round(float(x), 1):g}"
+
+
+def fahrenheit(c: float | None) -> str:
+    """A temperature in °F, whole degrees (v0.13.2: every temperature is shown in °F)."""
+    if c is None or (isinstance(c, float) and math.isnan(c)):
+        return "–"
+    return f"{round(float(c) * 9 / 5 + 32):d}"
+
+
+def fahrenheit_delta(dc: float) -> str:
+    """A temperature change in °F, whole degrees, never 0 for a non-zero change."""
+    f = float(dc) * 9 / 5
+    return f"{max(1, round(abs(f))) * (1 if f >= 0 else -1):d}"
+
+
+_ABS_C = re.compile(r"(?P<n>-?\d+(?:\.\d+)?) °C(?: \(\d+(?:\.\d+)? °F\))?")
+_DELTA_C = re.compile(r"(?P<n>\d+(?:\.\d+)?) °C (?P<w>warmer|cooler)")
+_COOLS_C = re.compile(r"(?P<v>cools|warms) (?P<n>\d+(?:\.\d+)?) °C")
+
+
+def fahrenheit_text(t: str) -> str:
+    """Older sentences written in °C, shown in °F: '2 °C warmer' -> '4 °F warmer', 'to 27 °C' ->
+    'to 81 °F', '49 °C (120 °F)' -> '120 °F'. Display only; the stored text is untouched."""
+    t = _DELTA_C.sub(lambda m: f"{fahrenheit_delta(float(m['n']))} °F {m['w']}", t)
+    t = _COOLS_C.sub(lambda m: f"{m['v']} {fahrenheit_delta(float(m['n']))} °F", t)
+    return _ABS_C.sub(lambda m: f"{fahrenheit(float(m['n']))} °F", t)
 
 
 def hour12(h: int) -> str:
