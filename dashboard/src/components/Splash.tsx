@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bolt } from './Logo';
+import { crackle, tick, unlock } from './sound';
 
-// Intro before sign-in: "Synergy" types across the screen; once typed, the S crackles (synthesised
-// electrical fizz, white sparks off its top and bottom ends) and turns into a golden bolt the size
-// of the letters; then the page hands over. Click anywhere to skip.
+// Intro before sign-in: "Synergy" types across the screen (a soft tick per letter); once typed, the S
+// crackles (electrical fizz) with white sparks off its top and bottom ends, then turns into a golden
+// bolt the size of the letters; then the page hands over. Click anywhere to skip.
 const TITLE = 'Synergy';
 const TYPE_MS = 140;
 const SPARKS = 26;
@@ -21,37 +22,6 @@ function makeSparks(): Spark[] {
     out.push({ id: i, end, dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed, delay: Math.random() * 450, life: 350 + Math.random() * 350, size: 3 + Math.random() * 3 });
   }
   return out;
-}
-
-/** A short electrical crackle: band-passed noise with random clicks. Needs a user gesture on most
- * browsers; returns false when the browser kept the audio context suspended. */
-function crackle(): boolean {
-  const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) return false;
-  const ctx = new AC();
-  const dur = 0.9;
-  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  const band = ctx.createBiquadFilter();
-  band.type = 'bandpass';
-  band.frequency.value = 3200;
-  band.Q.value = 0.7;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  let t = ctx.currentTime + 0.02;
-  while (t < ctx.currentTime + dur) {
-    gain.gain.setValueAtTime(0.15 + Math.random() * 0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.012 + Math.random() * 0.02);
-    t += 0.02 + Math.random() * 0.05;
-  }
-  src.connect(band).connect(gain).connect(ctx.destination);
-  src.start();
-  src.onended = () => { ctx.close().catch(() => undefined); };
-  if (ctx.state === 'suspended') { ctx.resume().catch(() => undefined); return ctx.state !== 'suspended'; }
-  return true;
 }
 
 export function Splash({ onDone }: { onDone: () => void }) {
@@ -73,17 +43,13 @@ export function Splash({ onDone }: { onDone: () => void }) {
       at(900, () => done.current());
       return () => timers.forEach(window.clearTimeout);
     }
-    for (let i = 1; i <= TITLE.length; i++) at(300 + i * TYPE_MS, () => setTyped(i));
+    unlock();
+    for (let i = 1; i <= TITLE.length; i++) at(300 + i * TYPE_MS, () => { setTyped(i); tick(); });
     const typedAt = 300 + TITLE.length * TYPE_MS;
     at(typedAt + 350, () => {
       setPhase('crackle');
       setSparks(makeSparks());
-      if (!crackle()) {
-        const once = () => { crackle(); window.removeEventListener('pointerdown', once); window.removeEventListener('keydown', once); };
-        window.addEventListener('pointerdown', once);
-        window.addEventListener('keydown', once);
-        timers.push(window.setTimeout(() => { window.removeEventListener('pointerdown', once); window.removeEventListener('keydown', once); }, 2500));
-      }
+      crackle();
     });
     at(typedAt + 1150, () => setPhase('bolt'));
     at(typedAt + 2500, () => setPhase('out'));

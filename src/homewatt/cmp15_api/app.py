@@ -319,4 +319,5 @@ if DIST.exists():
         f = DIST / path
         if path and f.is_file() and Path(f).resolve().is_relative_to(DIST.resolve()):
             return FileResponse(f)
-        return FileResponse(DIST / "index.html")
+        # the shell must never be cached: it names the hashed bundle, so a stale copy runs old code
+        return FileResponse(DIST / "index.html", headers={"Cache-Control": "no-store"})

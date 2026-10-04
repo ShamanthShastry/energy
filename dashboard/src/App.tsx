@@ -20,7 +20,8 @@ function initialTab(): Tab {
   return (TABS.find(t => t.id === h)?.id) ?? 'home';
 }
 
-// v0.12: the dashboard opens behind a simple sign-up / log-in (CMP-14).
+// v0.12: the dashboard opens behind a simple sign-up / log-in (CMP-14). The intro plays on every
+// load and again after Log out, so the first thing seen is always the animation, never the form.
 export default function App() {
   const [intro, setIntro] = useState(true);
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -30,7 +31,7 @@ export default function App() {
   if (intro) return <Splash onDone={() => setIntro(false)} />;
   if (me === undefined) return <div className="app"><p className="empty">Loading…</p></div>;
   if (me === null) return <AuthScreen onIn={m => { window.location.hash = 'home'; setMe(m); }} />;
-  return <Dashboard me={me} onOut={() => { api.post('/api/auth/logout').finally(() => setMe(null)); }} />;
+  return <Dashboard me={me} onOut={() => { api.post('/api/auth/logout').finally(() => { setMe(null); setIntro(true); }); }} />;
 }
 
 function Dashboard({ me, onOut }: { me: Me; onOut: () => void }) {
