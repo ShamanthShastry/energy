@@ -35,3 +35,4 @@ Canonical file: `dashboard/src/styles/tokens.css`. Nothing in the dashboard uses
 - Bars: 6 px rounded tracks in `--line`, fills in `--green-500`; chart bars rounded, gridlines dotted, axis text as captions.
 - Buttons: 6 px radius; primary `--green-700` on white, quiet outlined in `--line`. Inputs are underline-only.
 - Tabs and the header: brand as small caps; the home's name as the page title with a live-status line (dot in `--green-500`).
+- Mark: a vertical bolt (`components/Logo.tsx`), white on `--fg` in the header and sign-in; page-high in `--green-500` for the intro, where it grows from the bottom in a flash before the title fades in and sign-in appears (`components/Splash.tsx`).

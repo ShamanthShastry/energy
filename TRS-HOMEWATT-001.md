@@ -914,7 +914,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-16-03 — The appliance breakdown shall update live (≤ 5 s latency from a plug sample) for measured appliances and at the rollup cadence for estimated ones. Each tile shall display "measured" or "estimated" (TRS-SYS-02).
 - TRS-16-04 — A stale measured tile shall show its staleness; it shall not revert to the estimate (TRS-02-04).
 - TRS-16-05 — Every forecast figure shall be shown with its range, never as a point alone.
-- TRS-16-06 — The appliance breakdown shall expose the held-out error of the NILM model version in use (TRS-09-05) on a details view, in watts and as a share of that appliance's typical draw. Typical draw is the appliance's learned on-level in the deployed model (v0.12).
+- TRS-16-06 — The appliance breakdown shall expose the held-out error of the NILM model version in use (TRS-09-05) on a details view, in watts and as a share of that appliance's typical draw. Typical draw is the appliance type's learned on-level in the CO baseline co-v2.1 (v0.12).
 - TRS-16-07 — At the demo, any panel driven by replayed data shall carry a visible "simulated feed" marker (§4.2). Since v0.13.1 the marker is one line in the page footer ("Simulated feed · …") rather than a status line in the header, which read as a developer's screen; the per-appliance rows still say where each number comes from (TRS-SYS-02).
 - TRS-16-08 — The biggest impact change panel shall show the highest-ranked open action's saving in $/month and kg CO₂/month and its assumption\_text, with a link to the Actions tab. It shall carry no accept, dismiss, or Take action control; actions are taken only on the Actions tab (TRS-16-11).
 - TRS-16-09 — The dashboard shall render usably at 400 px width.

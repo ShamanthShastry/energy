@@ -69,7 +69,7 @@ export function MonthSummary({ s }: { s: Summary | null }) {
                 className={pick ? 'mark mark-pick' : 'mark'} onClick={pick} role={pick ? 'button' : undefined} aria-pressed={pick ? sel === d.day : undefined}
                 onKeyDown={pick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } } : undefined}>
                 <rect x={x - 1} y={padT} width={bw + 2} height={H - padB - padT} fill="transparent" />
-                <path d={roundTop(x, top, bw, H - padB - top)} className={`rise-y ${sel === d.day ? 'bar-selected' : d.kind === 'actual' ? 'bar-actual' : 'bar-forecast'}`} style={{ animationDelay: `${0.25 + i * 0.02}s` }} />
+                <path d={roundTop(x, top, bw, H - padB - top)} className={sel === d.day ? 'bar-selected' : d.kind === 'actual' ? 'bar-actual' : 'bar-forecast'} />
                 {d.kind === 'forecast' && d.p90_usd != null ? (
                   <line x1={x + bw / 2} x2={x + bw / 2} y1={y(d.p90_usd)} y2={top} className="range-line" />
                 ) : null}

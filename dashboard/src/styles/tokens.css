@@ -14,4 +14,6 @@
   --yellow-200: #FFFFC5;  /* secondary: selected bill day (v0.12) */
   --yellow-100: #FFFFE6;  /* secondary tint: the open day box */
   --yellow-700: #8A6D0B;  /* secondary text and outline on yellow */
+  --gold: #E3B341;        /* the intro's golden bolt only */
+  --gold-deep: #B8860B;   /* its shading */
 }

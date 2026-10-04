@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, type Me } from '../api';
+import { Bolt } from './Logo';
 
 // v0.12 CMP-14: sign up (name, email, password, ZIP) or log in, then straight to the Home tab.
 // Simple accounts on purpose: every account opens the demo home (OI-07).
@@ -25,7 +26,7 @@ export function AuthScreen({ onIn }: { onIn: (me: Me) => void }) {
 
   return (
     <div className="auth">
-      <div className="brand auth-brand"><span className="logo" aria-hidden="true">⌁</span><span>Synergy</span></div>
+      <div className="brand auth-brand"><span className="logo"><Bolt className="logo-bolt" /></span><span>Synergy</span></div>
       <section className="card auth-card">
         <div className="auth-tabs" role="tablist" aria-label="Sign up or log in">
           <button role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'tab active' : 'tab'} onClick={() => { setMode('signup'); setErr(null); }}>Sign up</button>

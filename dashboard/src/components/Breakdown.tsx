@@ -25,8 +25,8 @@ export function ApplianceRows({ items, extra }: { items: ApplianceRow[]; extra?:
   if (!items.length) return <Empty>No usage recorded.</Empty>;
   return (
     <ul className="bars">
-      {items.map((i, n) => (
-        <li key={i.appliance_id} className="rise" style={{ animationDelay: `${0.2 + n * 0.05}s` }}>
+      {items.map(i => (
+        <li key={i.appliance_id}>
           <button className="bar-row" aria-expanded={open === i.appliance_id} onClick={() => setOpen(open === i.appliance_id ? null : i.appliance_id)}>
             <span className="bar-label">{i.label}</span>
             <span className="bar-track"><span className="bar-fill" style={{ width: `${(i.share_pct / max) * 100}%` }} /></span>

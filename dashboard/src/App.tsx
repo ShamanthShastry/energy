@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api, ApiError, usePoll, type Actions, type Me, type Alerts, type Appliances, type Meta, type Savings, type Spikes as SpikesT, type Summary, type Thermostat } from './api';
 import { ActionsTab } from './components/ActionsTab';
 import { AuthScreen } from './components/AuthScreen';
+import { Bolt } from './components/Logo';
+import { Splash } from './components/Splash';
 import { Biggest } from './components/Biggest';
 import { Breakdown } from './components/Breakdown';
 import { Health } from './components/Health';
@@ -20,10 +22,12 @@ function initialTab(): Tab {
 
 // v0.12: the dashboard opens behind a simple sign-up / log-in (CMP-14).
 export default function App() {
+  const [intro, setIntro] = useState(true);
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   useEffect(() => {
     api.get<Me>('/api/auth/me').then(setMe).catch(e => setMe(e instanceof ApiError && e.status === 401 ? null : null));
   }, []);
+  if (intro) return <Splash onDone={() => setIntro(false)} />;
   if (me === undefined) return <div className="app"><p className="empty">Loading…</p></div>;
   if (me === null) return <AuthScreen onIn={m => { window.location.hash = 'home'; setMe(m); }} />;
   return <Dashboard me={me} onOut={() => { api.post('/api/auth/logout').finally(() => setMe(null)); }} />;
@@ -53,7 +57,7 @@ function Dashboard({ me, onOut }: { me: Me; onOut: () => void }) {
     <div className="app">
       <header className="top">
         <div className="brand">
-          <span className="logo" aria-hidden="true">⌁</span>
+          <span className="logo"><Bolt className="logo-bolt" /></span>
           <span>Synergy</span>
         </div>
         <div className="top-meta">
