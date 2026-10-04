@@ -64,9 +64,26 @@ class Ctx:
     def month_start(self) -> pd.Timestamp:
         return self.local_now.normalize().replace(day=1)
 
+    def hourly_all(self, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        """Every source and model version (plug, sim, nilm side by side)."""
+        return read_hourly(self.client, self.hh, start.tz_convert("UTC"), end.tz_convert("UTC"))
+
     def hourly(self, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
-        h = preferred_hourly(read_hourly(self.client, self.hh, start.tz_convert("UTC"), end.tz_convert("UTC")))
-        return h
+        return preferred_hourly(self.hourly_all(start, end))
+
+
+def latest_nilm(h: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    """nilm rows of the deployed splitter version, else the last version present (TRS-08-06)."""
+    from homewatt.cmp09_nilm.co import MODEL_VERSION_DEPLOY
+
+    if h.empty:
+        return h, ""
+    n = h[h["source"] == "nilm"]
+    if n.empty:
+        return n, ""
+    versions = set(n["model_version"])
+    mv = MODEL_VERSION_DEPLOY if MODEL_VERSION_DEPLOY in versions else sorted(versions)[-1]
+    return n[n["model_version"] == mv], mv
 
 
 def _cost_by(h: pd.DataFrame, tariff: Tariff, by: str | None = None) -> pd.Series | float:
@@ -197,7 +214,10 @@ def summary(c: Ctx) -> dict:
 # ---------------------------------------------------------------- panel 2: appliance breakdown
 def appliances(c: Ctx) -> dict:
     ms = c.month_start()
-    h = c.hourly(ms, c.local_now)
+    h_all = c.hourly_all(ms, c.local_now)
+    h = preferred_hourly(h_all)
+    nh, nilm_mv = latest_nilm(h_all)
+    est_usd = _cost_by(nh, c.tariff, "appliance_id") if len(nh) else pd.Series(dtype=float)
     labels = c.labels()
     types = c.types()
     usd = _cost_by(h, c.tariff, "appliance_id") if len(h) else pd.Series(dtype=float)
@@ -212,9 +232,11 @@ def appliances(c: Ctx) -> dict:
     live = c.client.sql(
         f"SELECT appliance_id, ts_us, watts, source FROM appliance_power WHERE household_id = '{c.hh}' AND ts_us >= {us(c.now - pd.Timedelta(minutes=10))} AND ts_us <= {us(c.now)}"
     )
-    nilm = c.client.sql("SELECT appliance_type, metric, value, eval_sessions FROM model_metric WHERE component = 'cmp09_nilm' AND model_version = 'co-v1'")
-    nilm_mae = {r["appliance_type"]: float(r["value"]) for r in nilm.to_dict("records") if r["metric"] == "mae_w"} if len(nilm) else {}
-    nilm_sessions = str(nilm.iloc[0]["eval_sessions"]) if len(nilm) else ""
+    nilm = c.client.sql(
+        "SELECT appliance_type, metric, value, eval_sessions, synthetic FROM model_metric "
+        f"WHERE component = 'cmp09_nilm' AND model_version = '{nilm_mv or 'co-v1'}'"
+    )
+    nilm_rec = {r["appliance_type"]: r for r in nilm.to_dict("records") if r["metric"] == "mae_w"} if len(nilm) else {}
     hours = h.groupby("appliance_id")["covered_s"].sum() / 3600 if len(h) else pd.Series(dtype=float)
     kwh_m = h.groupby("appliance_id")["kwh"].sum() if len(h) else pd.Series(dtype=float)
     src_of = h.groupby("appliance_id")["source"].first().to_dict() if len(h) else {}
@@ -235,11 +257,16 @@ def appliances(c: Ctx) -> dict:
         share = u / total * 100 if total else 0.0
         t = types.get(app)
         nilm_note = None
-        if t in nilm_mae and float(hours.get(app, 0)) > 0:
+        has_est = nilm_mv != "" and app in est_usd.index
+        eu = float(est_usd.get(app, 0.0)) if has_est else None
+        if t in nilm_rec and float(hours.get(app, 0)) > 0:  # TRS-16-06: error in watts and as a share of typical draw
+            rec = nilm_rec[t]
+            mae = float(rec["value"])
             avg_w = float(kwh_m.get(app, 0.0)) * 1000 / float(hours[app])
-            pct = nilm_mae[t] / avg_w * 100 if avg_w > 0 else None
-            nilm_note = (f"With a real sensor, the appliance splitter (co-v1) would estimate this. Its held-out error on real "
-                         f"recordings ({nilm_sessions}) is {d.watts(nilm_mae[t])} W" + (f", about {pct:.0f}% of this appliance's average draw." if pct is not None else "."))
+            pct = mae / avg_w * 100 if avg_w > 0 else None
+            where = "on synthetic days (synthetic HVAC)" if rec["synthetic"] else f"on real recordings ({rec['eval_sessions']})"
+            nilm_note = (f"Splitter ({nilm_mv or 'co-v1'}) held-out error {where}: {d.watts(mae)} W"
+                         + (f", about {pct:.0f}% of this appliance's average draw." if pct is not None else "."))
         elif t == "hvac":
             nilm_note = "Heating and cooling is synthetic in the practice home, so no real-data error exists for it."
         items.append({
@@ -251,9 +278,13 @@ def appliances(c: Ctx) -> dict:
             "error_detail": ("Simulated feed: these numbers come straight from the practice home, so there is no estimation error to show."
                              if src == "sim" else "Measured by a plug." if src == "plug" else "Estimated by the appliance splitter."),
             "nilm_note": nilm_note,
+            "est_usd_mtd": eu, "est_usd_mtd_display": d.money(eu) if eu is not None else None,
+            "est_share_pct": (eu / total * 100 if total else 0.0) if eu is not None else None,
+            "est_label": f"estimated · {nilm_mv}" if has_est else None,
         })
     items.sort(key=lambda x: -x["usd_mtd"])
-    return {"items": items, "total_display": d.money(total), "as_of": c.local_now.strftime("%-I:%M %p")}
+    return {"items": items, "total_display": d.money(total), "as_of": c.local_now.strftime("%-I:%M %p"),
+            "nilm_model_version": nilm_mv or None}
 
 
 # ---------------------------------------------------------------- panel 3: spikes

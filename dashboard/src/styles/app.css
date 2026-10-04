@@ -65,7 +65,12 @@ line.ref { stroke: var(--muted); stroke-width: 1; }
 .bar-row { width: 100%; display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; background: none; border: 0; padding: 5px 0; cursor: pointer; text-align: left; color: inherit; }
 .bar-label { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { height: 14px; background: transparent; position: relative; }
-.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--green-500); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 5px; background: var(--green-500); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-est { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--muted); border-radius: 0 2px 2px 0; min-width: 2px; }
+.bars-key { font-size: 12px; margin: 0 0 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.key-fill, .key-est { display: inline-block; width: 14px; border-radius: 2px; }
+.key-fill { height: 8px; background: var(--green-500); }
+.key-est { height: 3px; background: var(--muted); margin-left: 8px; }
 .bar-value { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-detail { font-size: 13px; padding: 4px 0 8px 130px; }
 .alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }

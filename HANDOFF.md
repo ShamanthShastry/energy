@@ -3,7 +3,7 @@
 **Date:** 2026-10-04
 **From:** Claude Code build session (Shamanth + Claude)
 **To:** the next Claude Code session
-**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.9.1**. The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
+**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.10** (OI-13 built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
 
 Read this file, then `TRS-HOMEWATT-001.md` in full, then `CLAUDE.md`, before changing anything.
 
@@ -69,7 +69,7 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 | CMP-04 tariff | `cmp04_tariff`, `config/tariffs/dte_d1_11.yaml` | Coverage check names missing/overlapping hours. |
 | CMP-05/07/08 ingestion, raw, appliance store | `cmp05_ingest`, `cmp07_raw_store`, `cmp08_appliance_store` | Hourly/daily rollups maintained by the `write_appliance_power` reducer. |
 | CMP-06 practice home | `cmp06_synth`, `config/profiles/demo_household.yaml`, `config/faults/fridge_day12.yaml` | Seeded, byte-reproducible; `behaviour.py` = simulated household following accepted suggestions. |
-| CMP-09 splitter baseline | `cmp09_nilm/co.py` | Combinatorial optimisation, power-only and +harmonics. Scores stored; rows not stored (OI-13). |
+| CMP-09 splitter | `cmp09_nilm/co.py`, `runner.py`, `data/models/co-v2.1.json` | Combinatorial optimisation. Deployed co-v2.1 (power only + synthetic hvac state + per-day baseload estimate) writes 60 s `nilm` rows each replayed day (TRS-09-10). `homewatt cmp09 fit` refits and stores scores; `homewatt cmp09 run --start --end` backfills. |
 | CMP-11 predictor | `cmp11_forecaster` | LightGBM vs seasonal-naive, time-ordered 80/20; naive if it doesn't win or < 14 days. |
 | CMP-12 fridge detector | `cmp12_anomaly` | Median/MAD z, two consecutive days, baseline skips anomalous days; fridge only in V1. |
 | CMP-13 savings calculator | `cmp13_simulator`, `config/atl.yaml` | Weekly batch of 3, stable within the week; dismissed slot refilled; suppression after 3 ignored weeks. |
@@ -109,14 +109,13 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 | OI-10 | Price-plan landing page at sign-up so prices are personal. He said **"not now"** on 2026-10-04 after the dashboard was running. Raise it again only when he brings it up or asks what's next. |
 | OI-11 | Precool needs a daily thermostat schedule, which TRS-SYS-03 forbids. Built as advice-only. Options: keep, program the device's own schedule once on the tap, or drop the actuator field. |
 | OI-12 | API takes 225–650 ms per request on Maincloud vs the 300 ms target. Options: cache reads in CMP-15, or let the dashboard subscribe to public tables. |
-| OI-13 | Splitter output is not stored (2 s rows would exceed the free tier). Options: store 60 s averages, store a recent window, or keep it evaluation-only for V1. |
 | OI-06 | Live scheduling (one scheduler vs cron). The demo driver runs the jobs for the replay. |
 
 ## Known limitations to state honestly in the pitch
 
 - Verified savings in the demo measure a simulated household that always follows what it accepts.
 - The weather "forecast" in the replay is what actually happened (perfect foresight).
-- The splitter baseline is weak on small loads (straightener F1 0.33, laptop 0.71); seq2point is not built (OI-03).
+- The splitter is weak on small loads (co-v2.1 held-out F1: laptop 0.26, screen 0.07, straightener 0.63); its baseload estimate absorbs loads that stay on all session. seq2point is not built (OI-03).
 - Only the fridge is watched for faults in V1.
 - Spike narration is not built (no surface for it since voice was removed).
 

@@ -2,7 +2,8 @@
 person taps Take action on the dashboard between `advance` calls. What the driver does:
 
   per replayed day   replay the aggregate (37 fields, 2 s) and the simulated per-appliance feed
-                     through CMP-05, move the demo clock, run the anomaly detector (CMP-12);
+                     through CMP-05, run the splitter on the stored aggregate (CMP-09, 60 s nilm
+                     rows, OI-13), move the demo clock, run the anomaly detector (CMP-12);
   at Monday 00:00    close ended weeks (TRS-17-06), verify and score (CMP-18), write the week's
                      weather forecast (replayed past, perfect foresight), forecast (CMP-11),
                      price and propose (CMP-13), narrate (CMP-20).
@@ -225,6 +226,8 @@ def advance(client, until_local: str) -> list[dict]:
     from homewatt.cmp05_ingest.replay import iter_samples, sim_model_version, tracks_from_truth
     from homewatt.cmp05_ingest.service import IngestionService
     from homewatt.cmp05_ingest.sinks import SpacetimeSink
+    from homewatt.cmp09_nilm.runner import load_model
+    from homewatt.cmp09_nilm.runner import run_day as nilm_day
     from homewatt.cmp12_anomaly.detector import run_day
 
     state = DemoState.load()
@@ -243,6 +246,7 @@ def advance(client, until_local: str) -> list[dict]:
     mv = sim_model_version(meta)
     sink = SpacetimeSink(client)
     svc = IngestionService(sink)
+    nilm = load_model()
     reports: list[dict] = []
     while cur < until:
         nxt = (cur + pd.Timedelta(days=1)).normalize()
@@ -255,9 +259,11 @@ def advance(client, until_local: str) -> list[dict]:
         for r in tracks_from_truth(day_truth, state.household_id, SIM_PERIOD_S).itertuples(index=False):
             svc.submit_plug(ApplianceSample(r.household_id, r.appliance_id, r.ts.to_pydatetime(), float(r.watts), "sim", mv, SIM_PERIOD_S))
         svc.flush()
+        nilm_rep = nilm_day(client, state.household_id, a, b, nilm)
         set_now(client, state.household_id, b)
         decisions = run_day(client, state.household_id, cur.date(), tz)
-        rep = {"day": str(cur.date()), "samples": len(day_agg), "anomaly": [d for d in decisions if d["decision"] != "insufficient history"]}
+        rep = {"day": str(cur.date()), "samples": len(day_agg), "nilm_rows": nilm_rep["rows"],
+               "anomaly": [d for d in decisions if d["decision"] != "insufficient history"]}
         state.replayed_until_utc = b.isoformat()
         state.save()
         if nxt.weekday() == 0:  # Monday 00:00 local: the week just ended

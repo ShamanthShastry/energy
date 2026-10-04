@@ -21,8 +21,9 @@ export type ApplianceItem = {
   appliance_id: string; label: string; usd_mtd: number; usd_mtd_display: string; share_pct: number; share_display: string;
   kwh_today_display: string; live_watts_display: string | null; stale: boolean; source: string; source_label: string;
   model_version: string; error_detail: string; nilm_note: string | null;
+  est_usd_mtd: number | null; est_usd_mtd_display: string | null; est_share_pct: number | null; est_label: string | null;
 };
-export type Appliances = { items: ApplianceItem[]; total_display: string; as_of: string };
+export type Appliances = { items: ApplianceItem[]; total_display: string; as_of: string; nilm_model_version: string | null };
 export type SpikeDay = {
   day: string; label: string; p50_usd: number; p90_usd: number; p50_display: string; p90_display: string;
   spike: boolean; delta_display: string; driver_label: string | null;

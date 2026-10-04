@@ -130,4 +130,90 @@ def summarise(res: pd.DataFrame) -> pd.DataFrame:
     return res.groupby("appliance")[["mae_w", "f1_10w", "energy_ratio"]].mean()
 
 
-__all__ = ["CO", "learn_states", "metrics", "evaluate", "summarise", "HARMONICS"]
+# ---------------------------------------------------------------- deployed model (OI-13, v0.10)
+# co-v2 is what runs on a household's stored aggregate. Power only: the harmonics variant did not
+# help CO net (TRS-09-01). It adds two things co-v1 lacks, both needed on a real home:
+#   1. an hvac state learned from the synthesized track only (TRS-09-09), since the dataset has none;
+#   2. a per-day baseload estimate, so standby load is not explained as small appliances.
+# co-v2 (first fit, 2026-10-04) also counted the dataset laptop as always on; its 12,960 rows for
+# 2025-06-30 and its metrics stay under that version (TRS-08-06). co-v2.1 counts the fridge only.
+MODEL_VERSION_DEPLOY = "co-v2.1"
+ALWAYS_ON_FRACTION = 0.95  # TRS-00-04 on-time fraction above which an appliance counts as always on
+# Only appliance types that run continuously by nature. The dataset laptop is a charger left in all
+# session (on-time 0.99) but households use laptops in sessions, so on-time alone over-counts.
+ALWAYS_ON_TYPES = frozenset({"fridge"})
+BASELOAD_QUANTILE = 0.01
+
+
+def always_on_types(library_dir) -> set[str]:
+    import json
+
+    per = json.loads((library_dir / "manifest.json").read_text())["per_appliance"]
+    return {a for a, v in per.items() if v.get("on_time_fraction_mean", 0.0) >= ALWAYS_ON_FRACTION and a in ALWAYS_ON_TYPES}
+
+
+def synthetic_hvac_state(hvac_w: np.ndarray) -> ApplianceStates | None:
+    """Off plus one on-level from the synthesized hvac track (TRS-09-09: synthetic data only)."""
+    on = np.asarray(hvac_w, float)
+    on = on[on > ON_THRESHOLD_W]
+    if len(on) < 10:
+        return None
+    w = float(np.median(on))
+    sig = np.zeros((2, 33))
+    sig[1, 0] = w
+    return ApplianceStates("hvac", np.array([0.0, w]), sig)
+
+
+class DeployedCO(CO):
+    """CO with a per-window baseload estimate: the low quantile of active power minus the
+    always-on appliances' levels, floored at zero."""
+
+    def __init__(self, states: list[ApplianceStates], always_on: set[str]):
+        super().__init__(states, use_harmonics=False)
+        self.version = MODEL_VERSION_DEPLOY
+        self.always_on_w = float(sum(s.watts[-1] for s in states if s.appliance in always_on))
+
+    def estimate_baseload(self, p_active_w: np.ndarray) -> float:
+        if len(p_active_w) == 0:
+            return 0.0
+        return max(float(np.quantile(p_active_w, BASELOAD_QUANTILE)) - self.always_on_w, 0.0)
+
+    def disaggregate_window(self, agg: np.ndarray) -> tuple[pd.DataFrame, float]:
+        self.baseload_w = self.estimate_baseload(agg[:, IDX_P_ACTIVE])
+        return self.disaggregate(agg), self.baseload_w
+
+
+def build_deployed(library_dir, hvac_w: np.ndarray | None) -> DeployedCO:
+    from homewatt.cmp00_activations.library import ActivationLibrary
+    from homewatt.schema import DATASET_APPLIANCE_TYPES
+
+    lib = ActivationLibrary(library_dir)  # train sessions only
+    states = [s for s in (learn_states(a, lib.activations(a)) for a in DATASET_APPLIANCE_TYPES) if s is not None]
+    hv = synthetic_hvac_state(hvac_w) if hvac_w is not None else None
+    if hv is not None:
+        states.append(hv)
+    return DeployedCO(states, always_on_types(library_dir))
+
+
+def evaluate_deployed(library_dir, model: DeployedCO, synthetic: pd.DataFrame | None = None) -> pd.DataFrame:
+    """TRS-09-04/05 on the held-out real sessions; hvac scored separately on synthetic data and
+    flagged synthetic (TRS-09-09). `synthetic`: aggregate fields + hvac_w, not used to learn hvac."""
+    from homewatt.cmp00_activations.split import read_split
+
+    rows = []
+    for sid in read_split(library_dir / "split.json")["test"]:
+        df = pd.read_parquet(library_dir / "sessions" / f"{sid}.parquet")
+        df = df[df["labelled"]]
+        est, _ = model.disaggregate_window(df[list(NUMERIC_FIELDS)].to_numpy())
+        for a in model.names:
+            if f"{a}_w" in df:
+                rows.append({"session": sid, "appliance": a, "synthetic": False, **metrics(df[f"{a}_w"].to_numpy(), est[a].to_numpy())})
+    if synthetic is not None and "hvac" in model.names and len(synthetic):
+        for day, g in synthetic.groupby(synthetic["ts"].dt.floor("D")):
+            est, _ = model.disaggregate_window(g[list(NUMERIC_FIELDS)].to_numpy())
+            rows.append({"session": f"synthetic {day.date()}", "appliance": "hvac", "synthetic": True,
+                         **metrics(g["hvac_w"].to_numpy(), est["hvac"].to_numpy())})
+    return pd.DataFrame(rows)
+
+
+__all__ = ["CO", "DeployedCO", "learn_states", "metrics", "evaluate", "summarise", "build_deployed", "evaluate_deployed", "HARMONICS"]

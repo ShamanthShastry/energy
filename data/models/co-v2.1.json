@@ -1,0 +1,81 @@
+{
+  "model_version": "co-v2.1",
+  "always_on_w": 57.579891204833984,
+  "states": [
+    {
+      "appliance": "fridge",
+      "watts": [
+        0.0,
+        57.579891204833984
+      ]
+    },
+    {
+      "appliance": "hair_dryer",
+      "watts": [
+        0.0,
+        801.702392578125
+      ]
+    },
+    {
+      "appliance": "iron",
+      "watts": [
+        0.0,
+        1313.30029296875
+      ]
+    },
+    {
+      "appliance": "laptop",
+      "watts": [
+        0.0,
+        36.42631912231445
+      ]
+    },
+    {
+      "appliance": "screen",
+      "watts": [
+        0.0,
+        12.005582809448242
+      ]
+    },
+    {
+      "appliance": "straightener",
+      "watts": [
+        0.0,
+        36.46402359008789
+      ]
+    },
+    {
+      "appliance": "water_heater",
+      "watts": [
+        0.0,
+        1503.6199951171875
+      ]
+    },
+    {
+      "appliance": "hvac",
+      "watts": [
+        0.0,
+        3000.0
+      ]
+    }
+  ],
+  "provenance": {
+    "fitted_at": "2026-10-04T06:41:10.600173+00:00",
+    "train_sessions": [
+      "05-12",
+      "05-14",
+      "05-15",
+      "05-19",
+      "05-20",
+      "05-22",
+      "05-23",
+      "06-02",
+      "06-16",
+      "06-17",
+      "06-18",
+      "06-20"
+    ],
+    "hvac_source": "data/synthetic/demo/timeline days 1-14",
+    "note": "power only; hvac state from synthesized data (TRS-09-09); baseload estimated per window"
+  }
+}

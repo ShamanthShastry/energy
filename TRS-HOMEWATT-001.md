@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.9.1 — DRAFT |
+| Version | 0.10 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -131,7 +131,7 @@ V1 is a hackathon build. The following are simulated at the demo and labelled as
 | Tariff | Real: typed in from the utility's rate sheet | Per-utility lookup |
 | Demo clock and household | The replay runs on the timeline's own clock (sim\_clock table); ledger, alert and actuation times follow it. The simulated household follows every suggestion it accepted, from the moment it accepted it, and an applied setpoint reshapes the HVAC track from the tap (TRS-19-07). Verified savings in the demo therefore measure a household that always complies, and are labelled as replayed | Real households, real compliance |
 | HVAC | Synthesized from weather by a thermostat model (TRS-06-07); NILM hvac head trained on synthetic data only. Dryer, oven, and EV remain absent | Real clamp data, hvac head retrained on it; UK-DALE signatures for dryer and oven |
-| Per-appliance split | The CMP-06 ground-truth tracks are fed through CMP-05 as source='sim' at 60 s means, labelled "simulated feed" (v0.5). The NILM baseline (CMP-09) writes its own 'nilm' rows alongside when time allows, shown with its error | NILM only (CMP-09) |
+| Per-appliance split | The CMP-06 ground-truth tracks are fed through CMP-05 as source='sim' at 60 s means, labelled "simulated feed" (v0.5). The deployed NILM baseline (CMP-09, co-v2.1) writes its own 'nilm' rows alongside at 60 s means, shown with its error (v0.10). A household without a simulated feed runs on those rows (TRS-08-01) | NILM only (CMP-09) |
 
 ## 5. Component specifications
 
@@ -533,7 +533,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-08-05 — A residual appliance\_id='baseload' shall be written for every timestep as aggregate minus the sum of all other appliances, floored at zero.
 - TRS-08-06 — Re-running NILM with a new model\_version shall add rows, never replace them. The dashboard reads the latest model\_version per household (TRS-SYS-04).
 
-**Error handling.** A NILM row whose timestamp has no matching raw\_aggregate row is rejected and counted; it indicates a model reading data outside the store.
+**Error handling.** A NILM row whose timestamp has no matching raw\_aggregate row is rejected and counted; it indicates a model reading data outside the store. Since v0.10 NILM rows are 60 s means (TRS-09-10), so the match is to a minute with raw\_aggregate samples; it holds by construction because CMP-09 reads only from CMP-07, and the reducer does not re-check it.
 
 **Verification criteria**
 
@@ -583,7 +583,9 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 * TRS-09-09 — The hvac output head shall be trained on the synthesized track only (TRS-06-07). Its metrics shall be reported separately from the real-session metrics of TRS-09-05 and labelled "synthetic HVAC" wherever shown, including the dashboard details view (TRS-16-06). The pitch shall not claim real-data accuracy for HVAC.
 
-**Error handling.** A window containing a gap event (CMP-05) shall produce no output for the gapped span; it shall not interpolate across it.
+* TRS-09-10 — The deployed model's output shall be stored as 60 s means per appliance, plus the baseload residual of TRS-08-05, with source='nilm', its model\_version, and a declared period of 60 s (TRS-08-03). The model shall read only the household's stored aggregate (CMP-07) and shall run on each replayed or live day. Deployed V1 model co-v2.1: the CO baseline on active power only (harmonics do not help it, TRS-09-01), plus an hvac state learned from the synthesized track only (TRS-09-09), plus a per-day baseload estimate (the 1st percentile of active power minus the always-on appliances, the fridge only, floored at zero), saved once to `data/models/co-v2.1.json`. Held-out real-session F1 at 10 W (MAE): fridge 0.94 (7 W), hair dryer 1.00 (2 W), iron 0.95 (3 W), water heater 0.67 (1 W), straightener 0.63 (5 W), laptop 0.26 (29 W), screen 0.07 (8 W); hvac 1.00 on synthetic days only. The laptop and screen fall against co-v1 because the 8 h dataset sessions keep them on throughout, so the baseload estimate absorbs them; on the 24 h demo days the estimate is within 6–14 W of the true 60 W except on the fridge-fault days (v0.10).
+
+**Error handling.** A window containing a gap event (CMP-05) shall produce no output for the gapped span; it shall not interpolate across it. At 60 s means, any minute touched by a gap of more than 10 s produces no row.
 
 **Verification criteria**
 
@@ -1186,7 +1188,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | OI-10 | Price-plan landing page. Decision of S. Shastry 2026-10-04: at account creation the household enters its price plan on a landing page, so every dollar figure uses its own prices (CMP-14, CMP-04). Implementation held until the dashboard runs end to end; raise it again then. Also settles where the active plan is shown on request (TRS-04-04). | CMP-14, CMP-04, CMP-16 | Claude to raise after step 7 |
 | OI-11 | hvac\_precool lists the thermostat actuator (Annex A) but needs a daily setpoint schedule, which TRS-SYS-03 forbids. V1: advice only, no device command. Decide: keep advice-only, program the device's own schedule once on the tap, or retire the actuator field. | Annex A, CMP-19 | S. Shastry |
 | OI-12 | TRS-15-05 latency not met on Maincloud (225–650 ms). Options: cache reads per poll in CMP-15, or have the dashboard subscribe to public tables directly. | CMP-15 | Backend lead |
-| OI-13 | NILM output cadence. TRS-09 emits one estimate per 2 s sample; written for 9 appliances over 4 weeks that is about 11 million rows, past the Maincloud free tier. The CO baseline (co-v1) is scored and its held-out error shown, but its rows are not stored. Decide: store NILM rows at 60 s means like the simulated feed, store a recent window only, or keep NILM evaluation-only for V1. | CMP-09, CMP-08 | S. Shastry |
+| OI-13 | RESOLVED 2026-10-04 (decision of S. Shastry): NILM rows are stored at 60 s means like the simulated feed (TRS-09-10), about 13,000 rows per household-day. Deployed model co-v2.1 backfilled for the replayed demo days and run by the demo driver each day; the dashboard shows the estimate beside the simulated feed with its held-out error. An earlier fit, co-v2, counted the dataset laptop as always on; its rows for 2025-06-30 and its metrics stay under that version (TRS-08-06). | CMP-09, CMP-08 | S. Shastry |
 
 ## 8. Deferred scope
 
@@ -1255,3 +1257,4 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | 0.8 | 2026-10-04 | Claude (for S. Shastry) | Decisions of S. Shastry: third dashboard tab, Savings, for verified savings and past outcomes (new TRS-16-12, TRS-18-04 points to it). Price-plan landing page at sign-up recorded as OI-10, implementation held until the dashboard runs. Not baselined. |
 | 0.9 | 2026-10-04 | Claude (for S. Shastry) | Steps 7–9 built. Implementation notes recorded: anomaly baseline skips days already scored anomalous and V1 monitors the fridge only (TRS-12-01/02); verification window clipped to the pricing forecast (TRS-18-01); advice-only actions accept on one tap (TRS-19-08); narrator narrates actions only (TRS-20-06); setpoint search bounded by the step limit (Annex A.3); demo clock and complying simulated household (§4.2). New open issues OI-11 (precool vs TRS-SYS-03), OI-12 (API latency on Maincloud), OI-13 (NILM storage cadence). CMP-09 CO baseline built and scored on held-out sessions. Not baselined. |
 | 0.9.1 | 2026-10-04 | Claude (for S. Shastry) | Status notes only, no requirement change: harmonics ablation result (TRS-09-01), narrator fallback retried on the next run (TRS-20-02), OI-03 CO baseline results, OI-09 key confirmed. Flowchart `docs/flowchart.mmd` redrawn to match. Not baselined. |
+| 0.10 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-13 resolved, NILM output stored at 60 s means. New TRS-09-10 (deployed model co-v2.1: power-only CO, synthetic hvac state, per-day baseload estimate; stored output and its held-out results); §4.2 and CMP-08 error handling restated for 60 s rows; CMP-09 gap rule restated per minute. Not baselined. |

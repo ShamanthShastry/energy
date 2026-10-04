@@ -34,3 +34,5 @@ spacetimedb/node_modules/
 
 # TypeScript build cache
 *.tsbuildinfo
+!data/models/
+!data/models/*.json
