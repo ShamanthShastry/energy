@@ -1,5 +1,5 @@
 %%{init: {"theme":"base","flowchart":{"curve":"basis","nodeSpacing":26,"rankSpacing":44,"htmlLabels":true},"themeVariables":{"background":"#F7F8F5","primaryColor":"#FFFFFF","primaryBorderColor":"#5C6B62","primaryTextColor":"#17201B","lineColor":"#5C6B62","clusterBkg":"#FFFFFF","clusterBorder":"#E1E6DF","edgeLabelBackground":"#F7F8F5","fontFamily":"ui-sans-serif, system-ui, -apple-system, sans-serif","fontSize":"15px"}}}%%
-%% HomeWatt: how it works and what is built. PM-level labels (component, key detail, status), 2026-10-04 (TRS v0.9.1).
+%% HomeWatt: how it works and what is built. PM-level labels (component, key detail, status), 2026-10-04 (TRS v0.10).
 %% Update only when Shamanth asks. Status lives in the class lines at the bottom.
 flowchart TD
   subgraph LEG["Status · Oct 4 · all V1 steps built · demo paused at Jul 21, 2025"]
@@ -39,14 +39,14 @@ flowchart TD
   ING --> AP
 
   subgraph MODELS["3 · Models and pricing"]
-    NILM["Disaggregation (NILM) · CMP-09<br/>baseline scored, output not stored<br/>? storage cadence (OI-13)"]
+    NILM["Disaggregation (NILM) · CMP-09<br/>co-v2.1, runs daily on stored readings<br/>✓ built · seq2point later"]
     FT["Per-home fine-tune · CMP-10<br/>— deferred"]
     FC["Weekly forecast · CMP-11<br/>LightGBM, kWh per appliance, p50/p90<br/>✓ built"]
     AN["Fault detection · CMP-12<br/>fridge vs. its own baseline<br/>✓ built"]
     SIM["Savings simulator · CMP-13<br/>prices 6 action types under the tariff<br/>✓ built"]
   end
-  RAW -.-> NILM
-  NILM -.-> AP
+  RAW --> NILM
+  NILM -- "estimates, 60 s" --> AP
   PLUG -.-> FT
   FT -.-> NILM
   AP --> FC
@@ -73,7 +73,7 @@ flowchart TD
     subgraph MAIN["Home tab · read-only"]
       direction LR
       P1["Month-to-date + projected bill"]
-      P2["Usage by appliance"]
+      P2["Usage by appliance<br/>sim feed + estimate"]
       P3["Cost spikes ahead"]
       P4["Appliance health"]
       P5["Top saving available"]
@@ -117,8 +117,8 @@ flowchart TD
   classDef deferred fill:#F7F8F5,stroke:#5C6B62,stroke-width:1px,stroke-dasharray:3 3,color:#5C6B62
   classDef actor fill:#FFFFFF,stroke:#17201B,stroke-width:1.5px,color:#17201B
 
-  class L1,TAR,WX,LIB,SYN,ING,RAW,AP,FC,AN,SIM,LED,NAR,API,P1,P2,P3,P4,P5,ROWS,TA,DIS,S1,S2,THERM,CLOSE,TRANS,VER done
+  class L1,TAR,WX,LIB,SYN,ING,RAW,AP,NILM,FC,AN,SIM,LED,NAR,API,P1,P2,P3,P4,P5,ROWS,TA,DIS,S1,S2,THERM,CLOSE,TRANS,VER done
   class L2 partial
-  class L3,ONB,NILM waiting
+  class L3,ONB waiting
   class L5,FT,PLUG deferred
   class HH actor

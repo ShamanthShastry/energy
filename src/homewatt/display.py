@@ -53,3 +53,16 @@ def plain_change(assumption_text: str) -> str:
 def per_month(horizon_usd: float, horizon_days: float = 7.0) -> float:
     """TRS-13-04: a 7-day horizon figure as its monthly equivalent."""
     return horizon_usd * DAYS_PER_MONTH / horizon_days
+
+
+def celsius(x: float | None) -> str:
+    """Setpoints: one decimal only when needed (25.5, 27)."""
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return "–"
+    return f"{round(float(x), 1):g}"
+
+
+def hour12(h: int) -> str:
+    """Local hour as people say it: 2 pm, 12 am."""
+    h = int(h) % 24
+    return f"{(h % 12) or 12} {'am' if h < 12 else 'pm'}"

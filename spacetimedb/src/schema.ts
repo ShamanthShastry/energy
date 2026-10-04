@@ -463,6 +463,42 @@ export const actuation = table(
   }
 );
 
+// v0.11 TRS-19-10..12: a schedule installed on the device by a user tap (precool). The row is the
+// log: written 'pending' before the command, then 'installed' or 'failed'; removal goes
+// 'removing' -> 'removed'. It ends by itself at validUntilUs (end of the action's week).
+export const thermostatSchedule = table(
+  {
+    name: 'thermostat_schedule',
+    public: true,
+    indexes: [{ accessor: 'byHouseholdAppliance', algorithm: 'btree', columns: ['householdId', 'applianceId'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    scheduleId: t.string().unique(),
+    actionId: t.string(),
+    householdId: t.string(),
+    applianceId: t.string(),
+    kind: t.string(), // 'precool'
+    weekdaysOnly: t.bool(),
+    preStartHour: t.u8(),
+    peakStartHour: t.u8(),
+    peakEndHour: t.u8(),
+    preCoolC: t.f32(),
+    peakWarmC: t.f32(),
+    minC: t.f32(),
+    maxC: t.f32(),
+    maxStepC: t.f32(),
+    validFromUs: t.i64(),
+    validUntilUs: t.i64(),
+    status: t.string(), // pending | installed | failed | removing | removed
+    error: t.string(),
+    removedBy: t.string(), // '' | 'undo'
+    removedAtUs: t.i64(),
+    undoExpiresAtUs: t.i64(), // TRS-19-04: install time + 24 h
+    tsUs: t.i64(),
+  }
+);
+
 // ------------------------------------------------------------------ CMP-20 narrator statements
 // TRS-20-08: retained; superseded marked, never deleted.
 export const statement = table(
@@ -545,6 +581,7 @@ const spacetimedb = schema({
   outcomeScore,
   thermostatState,
   actuation,
+  thermostatSchedule,
   statement,
   simClock,
   applianceDayFeature,

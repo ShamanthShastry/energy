@@ -37,7 +37,7 @@ export type Alerts = { items: Alert[]; monitored: string[] };
 export type ActionItem = {
   action_id: string; rank: number; appliance_label: string; action_type: string; sentence: string; narrated: boolean;
   saving_month_display: string; kg_month_display: string; status: string; status_label: string; viable: boolean;
-  take_kind: 'thermostat' | 'accept';
+  take_kind: 'thermostat' | 'schedule' | 'accept';
 };
 export type Actions = { week_id: string; week_label: string; first_week: boolean; items: ActionItem[]; biggest: ActionItem | null };
 export type SavingsItem = {
@@ -53,10 +53,19 @@ export type Thermostat = {
     actuation_id: string; actor: string; result: string; error: string; previous_c: number; applied_c: number;
     at_label: string; can_undo: boolean; undo_until_label: string | null;
   } | null;
+  schedule?: ScheduleView | null;
 };
 export type TakeResult =
   | { kind: 'accepted' }
-  | { kind: 'thermostat'; preview: { device_label: string; current_c: number; requested_c: number; applied_c: number; clamped: boolean; simulated: boolean; saving_month_display: string } };
+  | { kind: 'thermostat'; preview: { device_label: string; current_c: number; requested_c: number; applied_c: number; clamped: boolean; simulated: boolean; saving_month_display: string } }
+  | { kind: 'schedule'; preview: SchedulePreview };
+export type SchedulePreview = {
+  device_label: string; current_display: string; lines: string[]; days_label: string; until_label: string; simulated: boolean; saving_month_display: string;
+};
+export type ScheduleView = {
+  schedule_id: string; state: 'on' | 'ended' | 'undone' | 'failed'; error: string; title: string; lines: string[];
+  days_label: string; until_label: string; now_display: string; now_differs: boolean; can_undo: boolean; undo_until_label: string;
+};
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }

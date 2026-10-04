@@ -377,7 +377,7 @@ def actions(c: Ctx) -> dict:
             "action_type": r["action_type"], "sentence": text, "narrated": not unnarrated,
             "saving_month_display": d.money(month), "kg_month_display": d.kg(d.per_month(float(r["saving_kg_co_2"]))),
             "status": r["status"], "status_label": _status_label(r), "viable": viable,
-            "take_kind": "thermostat" if r["action_type"] == "hvac_setpoint_away" else "accept",
+            "take_kind": take_kind(r),
             "_rank": rank_score,
         })
     items.sort(key=lambda x: -x["_rank"])
@@ -438,6 +438,55 @@ def tariff(c: Ctx) -> dict:
             "fixed_display": d.money(t.fixed_usd_per_month), "carbon": f"{t.kg_co2_per_kwh} kg CO₂ per kWh ({t.carbon_source})"}
 
 
+def take_kind(r: dict) -> str:
+    """How Take action works for a row: a setpoint change, a schedule install (v0.11), or advice."""
+    if r["action_type"] == "hvac_setpoint_away":
+        return "thermostat"
+    try:
+        return "schedule" if json.loads(r["params_json"]).get("schedule") else "accept"
+    except (TypeError, ValueError):
+        return "accept"
+
+
+def schedule_view(c: Ctx, base_c: float) -> dict | None:
+    """The schedule in force now (TRS-19-12), or the latest one if none is."""
+    from homewatt.cmp06_synth.thermostat import schedule_setpoints
+
+    df = c.client.sql(f"SELECT * FROM thermostat_schedule WHERE household_id = '{c.hh}'")
+    if df.empty:
+        return None
+    df = df[df["status"].isin(["installed", "removing", "removed", "failed"])]
+    if df.empty:
+        return None
+    s = df.sort_values("ts_us").iloc[-1]
+    now_us = us(c.now)
+    in_force = s["status"] in ("installed", "removing") and int(s["valid_until_us"]) > now_us
+    pre_c = max(min(base_c - float(s["pre_cool_c"]), float(s["max_c"])), float(s["min_c"]))
+    peak_c = min(max(base_c + float(s["peak_warm_c"]), float(s["min_c"])), float(s["max_c"]))
+    now_c = float(schedule_setpoints(pd.DatetimeIndex([c.local_now]), [base_c], int(s["peak_start_hour"]), int(s["peak_end_hour"]),
+                                     int(s["peak_start_hour"]) - int(s["pre_start_hour"]), float(s["pre_cool_c"]), float(s["peak_warm_c"]),
+                                     float(s["min_c"]), float(s["max_c"]), float(s["max_step_c"]), bool(s["weekdays_only"]))[0]) if in_force else base_c
+    last_day = from_us(int(s["valid_until_us"])).tz_convert(c.tz) - pd.Timedelta(seconds=1)
+    undo_until = int(s["undo_expires_at_us"])
+    if s["status"] == "failed":
+        state = "failed"
+    elif s["status"] == "removed":
+        state = "undone"
+    else:
+        state = "on" if in_force else "ended"
+    days = "Weekdays" if bool(s["weekdays_only"]) else "Every day"
+    return {
+        "schedule_id": s["schedule_id"], "state": state, "error": s["error"],
+        "title": "Precool schedule",
+        "lines": [f"{d.hour12(s['pre_start_hour'])}–{d.hour12(s['peak_start_hour'])}: {d.celsius(pre_c)} °C, cooling ahead of the peak",
+                  f"{d.hour12(s['peak_start_hour'])}–{d.hour12(s['peak_end_hour'])}: {d.celsius(peak_c)} °C, resting through the peak"],
+        "days_label": days, "until_label": f"through {last_day.strftime('%a %b %-d')}",
+        "now_display": d.celsius(now_c), "now_differs": abs(now_c - base_c) > 1e-6,
+        "can_undo": bool(state == "on" and s["status"] == "installed" and undo_until > now_us),
+        "undo_until_label": from_us(undo_until).tz_convert(c.tz).strftime("%a %-I:%M %p"),
+    }
+
+
 def thermostat(c: Ctx) -> dict:
     st = c.client.sql(f"SELECT * FROM thermostat_state WHERE household_id = '{c.hh}'")
     if st.empty:
@@ -456,7 +505,8 @@ def thermostat(c: Ctx) -> dict:
                 "can_undo": bool(can_undo),
                 "undo_until_label": from_us(expires).tz_convert(c.tz).strftime("%a %-I:%M %p") if expires else None}
     return {"present": True, "label": labels.get(s["appliance_id"], s["appliance_id"]), "setpoint_c": float(s["current_setpoint_c"]),
-            "mode": s["mode"], "simulated": bool(s["simulated"]), "last_change": last}
+            "mode": s["mode"], "simulated": bool(s["simulated"]), "last_change": last,
+            "schedule": schedule_view(c, float(s["current_setpoint_c"]))}
 
 
 def json_safe(o):

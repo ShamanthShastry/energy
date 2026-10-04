@@ -128,15 +128,43 @@ def test_annex_a3_setpoint_outside_device_bounds_is_not_evaluated():
     assert sp.params["delta_c"] == 1  # 2 and 3 would leave the 27 °C bound
 
 
-def test_annex_a3_shift_never_moves_energy_into_peak_and_precool_targets_two_hours_before():
+def test_annex_a3_precool_is_priced_with_the_thermostat_model_running_the_schedule():
+    """v0.11: counterfactual = forecast + (scheduled − unscheduled compressor energy), same tariff function."""
+    from homewatt.cmp13_simulator import shapes
+    from homewatt.cmp13_simulator.costing import cost
+
     fc = forecast_for("hvac", lambda h, wd: 2.0 if (15 <= h < 19 and wd) else 0.5)
     apps = [ApplianceInfo("hvac", "hvac", "air conditioner")]
-    acts = price_all(ATL, hh(apps, thermostat=ThermostatParams(), current_setpoint_c=24.0), fc, DTE, MADE_AT,
-                     weather=pd.Series(np.full(168, 30.0), index=horizon()))
+    weather = pd.Series(np.full(168, 30.0), index=horizon())
+    acts = price_all(ATL, hh(apps, thermostat=ThermostatParams(), current_setpoint_c=24.0, device_bounds=(18.0, 27.0), max_step_c=2.0),
+                     fc, DTE, MADE_AT, weather=weather)
     pre = next(a for a in acts if a.action_type == "hvac_precool")
-    assert pre.params["peak_start"] == 15 and pre.params["peak_end"] == 19
-    assert pre.saving_usd == pytest.approx(5 * 4 * 2.0 * (0.24133 - 0.18435), rel=1e-6)
-    assert "before 15:00" in pre.assumption_text
+    p = pre.params
+    assert (p["peak_start"], p["peak_end"], p["pre_start"]) == (15, 19, 15 - int(p["pre_hours"]))
+    assert p["pre_setpoint_c"] == 24.0 - p["pre_cool_c"] and p["peak_setpoint_c"] == 24.0 + p["peak_warm_c"]
+    kwh = fc.set_index("ts")["kwh_p50"]
+    cf = shapes.schedule(kwh, weather, ThermostatParams(), 24.0, DTE, 15, 19, int(p["pre_hours"]), p["pre_cool_c"], p["peak_warm_c"], 18.0, 27.0, 2.0)
+    assert pre.saving_usd == pytest.approx(cost(kwh, DTE).usd - cost(cf, DTE).usd, abs=1e-6)  # TRS-13-02
+    assert "on weekdays this week" in pre.assumption_text and "from 1" in pre.assumption_text
+
+
+def test_trs_13_12_precool_searches_length_and_depth_together_and_keeps_the_best():
+    t = ATL.get("hvac_precool")
+    cands = t.candidates()
+    assert len(cands) == 3 * 4 and {c["pre_hours"] for c in cands} == {1.0, 2.0, 3.0}
+    assert {c["pre_cool_c"] for c in cands} == {0.5, 1.0, 1.5, 2.0}  # never 0: it stays a precool
+    fc = forecast_for("hvac", lambda h, wd: 2.0 if (15 <= h < 19 and wd) else 0.5)
+    apps = [ApplianceInfo("hvac", "hvac", "air conditioner")]
+    weather = pd.Series(np.full(168, 30.0), index=horizon())
+    house = hh(apps, thermostat=ThermostatParams(), current_setpoint_c=24.0, device_bounds=(18.0, 27.0), max_step_c=2.0)
+    best = next(a for a in price_all(ATL, house, fc, DTE, MADE_AT, weather=weather) if a.action_type == "hvac_precool")
+    for c in cands:
+        one = ATL.model_copy(deep=True)
+        tpl = one.get("hvac_precool")
+        tpl.params, tpl.search = dict(c), None
+        one.templates = [tpl]
+        a = next(x for x in price_all(one, house, fc, DTE, MADE_AT, weather=weather) if x.action_type == "hvac_precool")
+        assert best.saving_usd >= a.saving_usd - 1e-9
 
 
 def test_trs_13_01_maintenance_only_while_alert_open():

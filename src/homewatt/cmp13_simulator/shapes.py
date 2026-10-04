@@ -70,3 +70,26 @@ def setpoint(kwh: pd.Series, factor: float) -> pd.Series:
 
 def maintenance(kwh: pd.Series, factor: float) -> pd.Series:
     return kwh.astype(float) * float(factor)
+
+
+def schedule(kwh: pd.Series, weather_temp_c: pd.Series, params: ThermostatParams, current_setpoint_c: float, tariff: Tariff,
+             peak_start: int, peak_end: int, pre_hours: int, pre_cool_c: float, peak_warm_c: float,
+             lo_c: float, hi_c: float, max_step_c: float, weekdays_only: bool = True) -> pd.Series:
+    """v0.11 setpoint schedule (precool, TRS-19-10). The TRS-06-07 model runs over the horizon weather
+    at the current setpoint and under the schedule; the per-hour difference in compressor energy is
+    added to the forecast, floored at zero. Same model and schedule function as the device."""
+    idx = pd.DatetimeIndex(kwh.index)
+    temp = weather_temp_c.reindex(idx).ffill().bfill().to_numpy(dtype=float)
+    if len(temp) == 0 or np.isnan(temp).all():
+        return kwh.astype(float)
+    n = thermo.STEPS_PER_HOUR
+    ns = idx.tz_convert("UTC").as_unit("ns").asi8  # pandas 3: never mix units (HANDOFF gotcha)
+    step_ts = pd.DatetimeIndex(np.repeat(ns, n) + np.tile(np.arange(n, dtype=np.int64) * thermo.STEP_S * 10**9, len(idx)), tz="UTC")
+    step_temp = np.repeat(temp, n)
+    base_sp = np.full(len(step_ts), current_setpoint_c, dtype=np.float64)
+    sp = thermo.schedule_setpoints(step_ts.tz_convert(tariff.tz), base_sp, peak_start, peak_end, pre_hours, pre_cool_c, peak_warm_c,
+                                   lo_c, hi_c, max_step_c, weekdays_only)
+    base = thermo.simulate(step_temp, params, base_sp, indoor0_c=float(step_temp[0]))
+    new = thermo.simulate(step_temp, params, sp, indoor0_c=float(step_temp[0]))
+    dh = (new.on.reshape(-1, n).mean(axis=1) - base.on.reshape(-1, n).mean(axis=1)) * params.p_hvac_w / 1000.0
+    return pd.Series(np.maximum(kwh.to_numpy(dtype=float) + dh, 0.0), index=kwh.index)

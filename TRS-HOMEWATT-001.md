@@ -7,7 +7,7 @@ Oct 3, 2026 · @Shamanth
 | Field | Value |
 | --- | --- |
 | Document ID | TRS-HOMEWATT-001 |
-| Version | 0.10 — DRAFT |
+| Version | 0.11 — DRAFT |
 | Status | For review. Not baselined. |
 | Author | Shamanth Shastry |
 | Classification | Internal — MHacks 26 team |
@@ -28,7 +28,7 @@ Specification of all 20 components (CMP-01 … CMP-20) corresponding to every da
 
 ### 1.3 Out of scope
 
-- Autonomous control. The Tracker changes a device only when the user taps an action (TRS-SYS-03). Scheduling, automation, and any change without a tap are out of scope.
+- Autonomous control. The Tracker changes a device only when the user taps an action (TRS-SYS-03). Automation and any change without a tap are out of scope; a device schedule exists only when a tap installs one, bounded and ending with its week (v0.11).
 - The internal design of wrapped third-party components (SpacetimeDB, Open-Meteo, LightGBM, PyTorch). This document specifies their interfaces and expected behaviour.
 - Utility-side data-sharing integrations (Green Button Connect, UtilityAPI). Named as the production ingestion path; not built in V1.
 - Billing accuracy. Dollar figures are estimates derived from a user-entered tariff, not a reproduction of the utility's invoice.
@@ -101,7 +101,9 @@ Every component carries exactly one classification. The central design invariant
 
 **TRS-SYS-02** — Every per-appliance value shown to the user shall be labelled as measured (from a plug), estimated (from NILM), or simulated feed (from a CMP-06 ground-truth track, demo only, source='sim'), and every estimate or simulated value shall carry the model version that produced it. A simulated value shall never be labelled measured.
 
-**TRS-SYS-03** — The Tracker shall change the state of a device only in direct response to a user tap on a priced action (CMP-13), within bounds configured at onboarding, and with a visible undo. The Tracker shall never change a device state on a schedule, on a forecast, or without a tap.
+**TRS-SYS-03** — The Tracker shall change the state of a device only in direct response to a user tap on a priced action (CMP-13), within bounds configured at onboarding, and with a visible undo. A tap may install a schedule on the device itself, only for an Annex A template that declares one; the schedule is bounded in its values (TRS-19-02) and its duration (it ends with the action's week, TRS-19-11), and is shown and undoable like any other change. The Tracker itself shall never change a device state on its own clock, on a forecast, or without a tap.
+
+> Changed in v0.11 (decision of S. Shastry, 2026-10-04): a tap may install a bounded, week-long schedule on the device, so precool can be carried out (OI-11). The device runs the schedule; no Tracker component sends a command on a timer.
 
 **TRS-SYS-04** — Raw aggregate samples shall be retained unmodified. Rollups and disaggregations are derived views and shall be reproducible from the raw store and a model version.
 
@@ -129,7 +131,7 @@ V1 is a hackathon build. The following are simulated at the demo and labelled as
 | Smart plug | One live energy-monitoring plug | Same, used in a calibration week then removed |
 | Weather | Real: Open-Meteo archive for the household ZIP. In the replayed demo the 7-day "forecast" is the archive value for those hours flagged is\_forecast=true, i.e. perfect foresight, stated as such on the dashboard marker | Open-Meteo 7-day forecast |
 | Tariff | Real: typed in from the utility's rate sheet | Per-utility lookup |
-| Demo clock and household | The replay runs on the timeline's own clock (sim\_clock table); ledger, alert and actuation times follow it. The simulated household follows every suggestion it accepted, from the moment it accepted it, and an applied setpoint reshapes the HVAC track from the tap (TRS-19-07). Verified savings in the demo therefore measure a household that always complies, and are labelled as replayed | Real households, real compliance |
+| Demo clock and household | The replay runs on the timeline's own clock (sim\_clock table); ledger, alert and actuation times follow it. The simulated household follows every suggestion it accepted, from the moment it accepted it, and an applied setpoint or an installed schedule reshapes the HVAC track from the tap (TRS-19-07). Verified savings in the demo therefore measure a household that always complies, and are labelled as replayed | Real households, real compliance |
 | HVAC | Synthesized from weather by a thermostat model (TRS-06-07); NILM hvac head trained on synthetic data only. Dryer, oven, and EV remain absent | Real clamp data, hvac head retrained on it; UK-DALE signatures for dryer and oven |
 | Per-appliance split | The CMP-06 ground-truth tracks are fed through CMP-05 as source='sim' at 60 s means, labelled "simulated feed" (v0.5). The deployed NILM baseline (CMP-09, co-v2.1) writes its own 'nilm' rows alongside at 60 s means, shown with its error (v0.10). A household without a simulated feed runs on those rows (TRS-08-01) | NILM only (CMP-09) |
 
@@ -761,7 +763,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 **Requirements**
 
-- TRS-13-01 — The simulator shall evaluate only the templates in the Action Template Library (ATL, Annex A). Action shapes in V1 shall be: shift (move an appliance's forecast kWh out of a set of hours into the cheapest permitted hours, energy-preserving), trim (scale an appliance's kWh by a factor), setpoint (change a thermostat setpoint; kWh effect from the thermostat model of TRS-06-07), and maintenance (scale kWh by a factor, enabled only while a CMP-12 alert is open).
+- TRS-13-01 — The simulator shall evaluate only the templates in the Action Template Library (ATL, Annex A). Action shapes in V1 shall be: shift (move an appliance's forecast kWh out of a set of hours into the cheapest permitted hours, energy-preserving), trim (scale an appliance's kWh by a factor), setpoint (change a thermostat setpoint, or install a weekday setpoint schedule (v0.11); kWh effect from the thermostat model of TRS-06-07), and maintenance (scale kWh by a factor, enabled only while a CMP-12 alert is open).
 - TRS-13-02 — Baseline cost and counterfactual cost shall be computed by the same function over the same tariff; saving shall be their difference, never an independently estimated number.
 - TRS-13-03 — Every priced action shall carry assumption\_text stating what was changed in one sentence ("assumes all dryer use between 3–7 pm moves to 7–9 pm").
 - TRS-13-04 — Actions whose saving\_usd is below $1/month shall be computed but not surfaced. saving\_usd is the saving over the forecast horizon (7 days); the floor is applied to its monthly equivalent, saving\_usd × 30.4375 / 7, and the dashboard shows that same monthly equivalent (TRS-16-08).
@@ -774,7 +776,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 * TRS-13-10 — An action\_type dismissed in 3 consecutive weeks for a household shall be suppressed for the following 4 weeks, and the suppression recorded with its reason. A dismissal by the user and an expiry at week end (TRS-17-06) both count. The suppression is read back from its record each week so it lasts the full 4 weeks.
 * TRS-13-11 — Each issued action shall carry week\_id and shall record the success\_score used at ranking time, so the ranking can be audited later.
 
-- TRS-13-12 — Where a template declares a search range for a parameter (Annex A, `search`), the simulator shall evaluate every value in the range at the declared step and keep the value with the greatest saving\_usd. The chosen value shall be recorded in params.
+- TRS-13-12 — Where a template declares a search range for one or more parameters (Annex A, `search`), the simulator shall evaluate every combination of the values in the ranges at the declared steps and keep the combination with the greatest saving\_usd. The chosen values shall be recorded in params. Several ranges added in v0.11 (precool adapts its length and depth to each week).
 - TRS-13-13 — Cold start: in a household's first week, or for any action\_type with a null success score, ranking shall be by saving\_usd alone, and the narrator input shall carry first\_week=true so the Actions tab can say the Tracker is still learning what works for this household.
 
 **Error handling.** A template referencing an appliance the household lacks is skipped silently.
@@ -1036,13 +1038,14 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | Implementing tool | V1: simulated thermostat (a state row in CMP-08 plus a dashboard widget). Production: Google Smart Device Management API for Nest; ecobee API as an alternative |
 | Owner | Backend lead |
 
-**Purpose.** Turns an accepted setpoint action into a real change on a device, so the forecast ends in something the household can see happen. The only component in the Tracker that holds a device handle.
+**Purpose.** Turns an accepted setpoint action into a real change on a device, or an accepted schedule action into a schedule the device runs itself (v0.11), so the forecast ends in something the household can see happen. The only component in the Tracker that holds a device handle.
 
 **Inputs**
 
 | Name | Source | Format |
 | --- | --- | --- |
 | Accepted setpoint action | CMP-17, via a user tap in CMP-16 | {action\_id, appliance\_id, params: {target\_setpoint\_c}} |
+| Accepted schedule action (v0.11) | CMP-17, via a user tap in CMP-16 | {action\_id, appliance\_id, params: {schedule, pre\_hours, pre\_cool\_c, peak\_warm\_c, peak\_start, peak\_end}} |
 | Device bounds | CMP-14 | {appliance\_id, min\_setpoint\_c, max\_setpoint\_c, max\_step\_c} |
 | Device state | Device adapter (simulated or SDM) | {appliance\_id, current\_setpoint\_c, mode, read\_at} |
 
@@ -1050,7 +1053,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 
 | Name | Destination | Format |
 | --- | --- | --- |
-| Device command | Device adapter | set\_setpoint(appliance\_id, target\_c) |
+| Device command | Device adapter | set\_setpoint(appliance\_id, target\_c); install\_schedule / remove\_schedule (v0.11) |
 | Actuation log | CMP-08 actuations | {action\_id, appliance\_id, previous\_c, requested\_c, applied\_c, result, actor, ts} |
 | Undo token | CMP-16 | {action\_id, previous\_c, expires\_at} |
 
@@ -1061,10 +1064,14 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - TRS-19-03 — Every actuation shall write a log row before the command is sent and update it with the result after. A command with no log row shall be impossible by construction.
 - TRS-19-04 — The dashboard shall offer undo for 24 h after an actuation. Undo restores previous\_c through the same actuator and is logged as its own actuation with actor='undo'.
 - TRS-19-05 — The actuator shall read the device state before every command and shall refuse to act if the state is older than 5 minutes or the device is unreachable, reporting the reason to the user.
-- TRS-19-06 — The device adapter shall be a single interface (read\_state, set\_setpoint) with two implementations: simulated (V1) and SDM (production). No other code shall differ between the two.
-- TRS-19-07 — The simulated adapter shall apply the setpoint to the replayed timeline by scaling the hvac track per CMP-13's setpoint factor from the actuation timestamp forward, so that the dashboard's live breakdown visibly responds to the tap.
+- TRS-19-06 — The device adapter shall be a single interface (read\_state, set\_setpoint, install\_schedule, remove\_schedule) with two implementations: simulated (V1) and SDM (production). No other code shall differ between the two.
+- TRS-19-07 — The simulated adapter shall apply the setpoint to the replayed timeline by scaling the hvac track per CMP-13's setpoint factor from the actuation timestamp forward, so that the dashboard's live breakdown visibly responds to the tap. An installed schedule is applied the same way, step by step, while it is in force (v0.11).
 - TRS-19-08 — The tap control shall state the device, the current and target setpoint, and the expected saving from CMP-13 before the user confirms. One tap to open, one tap to confirm. Actions with no device change (advice only) are accepted on a single tap of Take action.
 - TRS-19-09 — At the demo, the simulated device shall carry the "simulated" marker (TRS-16-07).
+
+* TRS-19-10 — A schedule action (Annex A template with `schedule`) shall install, on one tap to open and one to confirm (TRS-19-08), a weekday schedule on the device: from peak\_start − pre\_hours to peak\_start the setpoint is the current setpoint − pre\_cool\_c; from peak\_start to peak\_end it is the current setpoint + peak\_warm\_c; at other times the current setpoint. Each value is clamped to the CMP-14 bounds and to max\_step\_c from the current setpoint (TRS-19-02), and the clamped values are shown before confirmation. Offsets apply to the setpoint in force at each moment, so a later setpoint tap keeps the schedule relative. V1 precool: peak\_warm\_c 2; pre\_hours (1–3) and pre\_cool\_c (0.5–2 °C) chosen each week by the TRS-13-12 search; weekdays only.
+* TRS-19-11 — A schedule shall carry valid\_until = the end of its action's week\_id (Monday 00:00 local, TRS-17-06), after which the device stops applying it. No Tracker component re-sends, extends, or renews a schedule; next week's batch may propose it again. At most one schedule per device is in force at a time.
+* TRS-19-12 — Installing and removing a schedule follow TRS-19-03 (log row before the command), TRS-19-04 (undo for 24 h removes it, logged with actor='undo') and TRS-19-05 (fresh device state). The thermostat view shall show an installed schedule, its hours, and when it ends.
 
 **Error handling.** Adapter error: log result='failed' with the error, show it to the user, leave the action in status accepted so it can be retried. Never retry automatically.
 
@@ -1073,7 +1080,9 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 - Tap a setpoint action on the simulated device; confirm a log row with previous\_c and applied\_c, the thermostat widget updates, and the hvac tile's live watts change within one rollup cycle.
 - Request a 5 °C change; confirm it is clamped to 2 °C and the clamped value is displayed before confirmation.
 - Tap undo; confirm previous\_c is restored and a second log row with actor='undo' exists.
-- Static check: grep for set\_setpoint; exactly one call site, inside the actuator.
+- Static check: grep for set\_setpoint; exactly one call site, inside the actuator. Same for install\_schedule and remove\_schedule.
+- Tap precool; confirm the preview states both setpoints and the end date, a schedule row and a log row exist, and the replayed hvac track follows the schedule on weekdays only and stops at the week's end.
+- Undo an installed schedule within 24 h; confirm it is removed and logged with actor='undo'.
 - Confirm no scheduler, model, or API route other than the tap handler can reach the actuator.
 
 **Dependencies.** CMP-08, CMP-13, CMP-14, CMP-16, CMP-17.
@@ -1166,7 +1175,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | --- | --- |
 | TRS-SYS-01 | TRS-04-04, TRS-09-06, TRS-11-01, TRS-13-02, TRS-13-07, TRS-15-01, TRS-16-10, TRS-20-02, TRS-20-03 |
 | TRS-SYS-02 | TRS-02-03, TRS-08-02, TRS-09-08, TRS-15-04, TRS-16-03 |
-| TRS-SYS-03 | TRS-19-01, TRS-19-02, TRS-19-03, TRS-19-04, TRS-19-07 |
+| TRS-SYS-03 | TRS-19-01, TRS-19-02, TRS-19-03, TRS-19-04, TRS-19-07, TRS-19-10, TRS-19-11, TRS-19-12 |
 | TRS-SYS-04 | TRS-03-02, TRS-07-02, TRS-08-06, TRS-11-07 |
 | TRS-SYS-05 | TRS-13-03, TRS-13-09, TRS-13-11, TRS-17-01, TRS-17-04, TRS-17-05, TRS-18-04, TRS-18-05 |
 | TRS-SYS-06 | Implementing-tool fields of CMP-05 … CMP-18 |
@@ -1186,7 +1195,7 @@ Service charge $8.50/month, excluded per TRS-04-05. The summer peak/off-peak gap
 | OI-08 | No Nest device is available to the team. V1 ships the simulated adapter only; the SDM adapter is specified but untested. Google Device Access enrollment (fee, OAuth, project setup) has not been started and its current terms are unverified. | CMP-19 | Backend lead, if a device turns up |
 | OI-09 | Narrator access. The narrator is Gemini (decided). Gemini API key confirmed 2026-10-04 (gemini-2.5-flash on the Gemini API, key in `.env`); quota for the event not yet checked. Voice delivery (speech synthesis, Alexa) was removed from scope in v0.4; the statements are text on the Actions tab. | CMP-20, CMP-16 | Backend lead, before the event |
 | OI-10 | Price-plan landing page. Decision of S. Shastry 2026-10-04: at account creation the household enters its price plan on a landing page, so every dollar figure uses its own prices (CMP-14, CMP-04). Implementation held until the dashboard runs end to end; raise it again then. Also settles where the active plan is shown on request (TRS-04-04). | CMP-14, CMP-04, CMP-16 | Claude to raise after step 7 |
-| OI-11 | hvac\_precool lists the thermostat actuator (Annex A) but needs a daily setpoint schedule, which TRS-SYS-03 forbids. V1: advice only, no device command. Decide: keep advice-only, program the device's own schedule once on the tap, or retire the actuator field. | Annex A, CMP-19 | S. Shastry |
+| OI-11 | RESOLVED 2026-10-04 (decision of S. Shastry): a tap installs a bounded weekday precool schedule on the thermostat that ends with the action's week (TRS-SYS-03 reworded, TRS-19-10 to 19-12, Annex A). Precool is priced with the thermostat model running that schedule. | Annex A, CMP-19 | S. Shastry |
 | OI-12 | TRS-15-05 latency not met on Maincloud (225–650 ms). Options: cache reads per poll in CMP-15, or have the dashboard subscribe to public tables directly. | CMP-15 | Backend lead |
 | OI-13 | RESOLVED 2026-10-04 (decision of S. Shastry): NILM rows are stored at 60 s means like the simulated feed (TRS-09-10), about 13,000 rows per household-day. Deployed model co-v2.1 backfilled for the replayed demo days and run by the demo driver each day; the dashboard shows the estimate beside the simulated feed with its held-out error. An earlier fit, co-v2, counted the dataset laptop as always on; its rows for 2025-06-30 and its metrics stay under that version (TRS-08-06). | CMP-09, CMP-08 | S. Shastry |
 
@@ -1215,7 +1224,7 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | shape | enum | shift, trim, setpoint, maintenance |
 | applies\_to | list of appliance types | From the closed list in TRS-14-02 |
 | params | map | Fixed parameters for the shape |
-| search | map, optional | A parameter to optimise: {name, min, max, step}. The simulator tries every value (TRS-13-12). |
+| search | map or list of maps, optional | Parameters to optimise: {name, min, max, step} each. The simulator tries every combination (TRS-13-12). |
 | requires\_alert | bool | Only priced while a CMP-12 alert is open for that appliance |
 | requires\_tou | bool | Only priced when the tariff has more than one period (TRS-13-05) |
 | actuator | text, optional | Device adapter to invoke on accept (CMP-19); absent means advice only |
@@ -1227,7 +1236,7 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | --- | --- | --- | --- | --- | --- |
 | shift\_out\_of\_peak | shift | water\_heater, hair\_dryer, straightener, iron | from: tariff peak hours; search to\_hour 19–23 step 1 | requires\_tou | assumes all peak-hour use of {appliance} moves to {to\_hour}:00 or later |
 | hvac\_setpoint\_away | setpoint | hvac | search delta\_c 1–3 step 1; sign = +1 in cooling mode | actuator: thermostat | assumes the thermostat is set {delta\_c} °C warmer for the week |
-| hvac\_precool | shift | hvac | from: tariff peak hours; to: the 2 hours before peak | requires\_tou, actuator: thermostat | assumes the house is cooled before {peak\_start}:00 and the air conditioner rests until {peak\_end}:00 |
+| hvac\_precool | setpoint (schedule, v0.11) | hvac | schedule: precool; peak\_warm\_c 2, weekdays; peak hours from the tariff; search pre\_hours 1–3 step 1 and pre\_cool\_c 0.5–2 step 0.5 | requires\_tou, actuator: thermostat | assumes the thermostat runs {pre\_cool\_c} °C cooler from {pre\_start}:00 to {peak\_start}:00 and {peak\_warm\_c} °C warmer until {peak\_end}:00 on weekdays this week |
 | water\_heater\_setpoint | trim | water\_heater | factor 0.90 |  | assumes the water heater is set to 49 °C (120 °F) |
 | trim\_standby | trim | laptop, screen, lamp | factor 0.85 |  | assumes {appliance} is switched off at the wall when not in use |
 | fridge\_service | maintenance | fridge | factor 0.85 | requires\_alert | assumes the fridge returns to its usual cycle after the coils are cleaned or the door seal fixed |
@@ -1237,7 +1246,7 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 - A template whose applies\_to includes no appliance in the household is skipped silently (CMP-13 error handling).
 - A shift template never moves energy into a peak period; the target set is restricted to off-peak hours even when search would prefer otherwise.
 - hvac\_setpoint\_away is bounded by the CMP-14 device bounds before pricing, including the per-action step limit max\_step\_c (TRS-19-02); a delta that would leave the bounds or exceed the step is not evaluated, so every priced setpoint is one the device can apply in one tap (v0.9).
-- hvac\_precool names the thermostat actuator, but carrying it out means changing the setpoint on a daily schedule, which TRS-SYS-03 forbids. V1 treats it as advice only: Take action accepts it and no device command is sent (OI-11).
+- hvac\_precool installs a weekday schedule on the thermostat on the tap (TRS-SYS-03 as of v0.11, TRS-19-10 to 19-12). It is priced by running the thermostat model of TRS-06-07 over the horizon weather with the schedule against the current setpoint, both clamped to the device bounds; the difference in compressor energy per hour is applied to the forecast.
 - Adding a template is a TRS revision (this annex) and a YAML change, nothing else. Removing one is a retirement: the row stays with retired: true so historical ledger rows still resolve.
 - Heating-season behaviour of hvac\_setpoint\_away (sign = −1) is defined here but inactive in V1 because the thermostat model is cooling-only (TRS-06-07).
 
@@ -1258,3 +1267,4 @@ The ATL is the complete set of moves the simulator (CMP-13) may price. It bounds
 | 0.9 | 2026-10-04 | Claude (for S. Shastry) | Steps 7–9 built. Implementation notes recorded: anomaly baseline skips days already scored anomalous and V1 monitors the fridge only (TRS-12-01/02); verification window clipped to the pricing forecast (TRS-18-01); advice-only actions accept on one tap (TRS-19-08); narrator narrates actions only (TRS-20-06); setpoint search bounded by the step limit (Annex A.3); demo clock and complying simulated household (§4.2). New open issues OI-11 (precool vs TRS-SYS-03), OI-12 (API latency on Maincloud), OI-13 (NILM storage cadence). CMP-09 CO baseline built and scored on held-out sessions. Not baselined. |
 | 0.9.1 | 2026-10-04 | Claude (for S. Shastry) | Status notes only, no requirement change: harmonics ablation result (TRS-09-01), narrator fallback retried on the next run (TRS-20-02), OI-03 CO baseline results, OI-09 key confirmed. Flowchart `docs/flowchart.mmd` redrawn to match. Not baselined. |
 | 0.10 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-13 resolved, NILM output stored at 60 s means. New TRS-09-10 (deployed model co-v2.1: power-only CO, synthetic hvac state, per-day baseload estimate; stored output and its held-out results); §4.2 and CMP-08 error handling restated for 60 s rows; CMP-09 gap rule restated per minute. Not baselined. |
+| 0.11 | 2026-10-04 | Claude (for S. Shastry) | Decision of S. Shastry: OI-11 resolved. TRS-SYS-03 and §1.3 reworded so a tap may install a bounded, week-long schedule on the device; new TRS-19-10 to 19-12 (precool schedule, expiry at week end, logging and undo); TRS-19-06/07, TRS-13-01, TRS-13-12 (search over several parameters, so precool adapts to each week), CMP-19 inputs and outputs, §4.2, Annex A (schema, hvac\_precool row, A.3) restated. Priced with the thermostat model, a fixed 2 h × 2 °C precool fell below the floor at a 26 °C setpoint; the search picks the week's best. Not baselined. |

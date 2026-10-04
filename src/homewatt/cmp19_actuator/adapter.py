@@ -27,6 +27,12 @@ class ThermostatAdapter(Protocol):
     def set_setpoint(self, actuation_id: str) -> None:
         """Apply the logged, pending actuation. Raises DeviceUnavailable on failure."""
 
+    def install_schedule(self, schedule_id: str) -> None:
+        """v0.11: install the logged, pending schedule on the device (TRS-19-10)."""
+
+    def remove_schedule(self, schedule_id: str) -> None:
+        """v0.11: remove a schedule whose removal is logged (TRS-19-12)."""
+
 
 class SimulatedThermostat:
     """V1 adapter: the thermostat is a row in the store (TRS-19-09 'simulated')."""
@@ -56,6 +62,22 @@ class SimulatedThermostat:
         except SpacetimeError as e:
             raise DeviceUnavailable(str(e)) from e
 
+    def install_schedule(self, schedule_id: str) -> None:
+        from homewatt.spacetime import SpacetimeError
+
+        try:
+            self.client.call("install_schedule", schedule_id)
+        except SpacetimeError as e:
+            raise DeviceUnavailable(str(e)) from e
+
+    def remove_schedule(self, schedule_id: str) -> None:
+        from homewatt.spacetime import SpacetimeError
+
+        try:
+            self.client.call("remove_schedule", schedule_id)
+        except SpacetimeError as e:
+            raise DeviceUnavailable(str(e)) from e
+
 
 class SdmThermostat:
     """Production adapter for Google Nest via Smart Device Management. Not built (OI-08)."""
@@ -64,4 +86,10 @@ class SdmThermostat:
         raise NotImplementedError("SDM adapter not built in V1 (OI-08)")
 
     def set_setpoint(self, actuation_id: str) -> None:
+        raise NotImplementedError("SDM adapter not built in V1 (OI-08)")
+
+    def install_schedule(self, schedule_id: str) -> None:
+        raise NotImplementedError("SDM adapter not built in V1 (OI-08)")
+
+    def remove_schedule(self, schedule_id: str) -> None:
         raise NotImplementedError("SDM adapter not built in V1 (OI-08)")

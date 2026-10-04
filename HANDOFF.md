@@ -3,7 +3,7 @@
 **Date:** 2026-10-04
 **From:** Claude Code build session (Shamanth + Claude)
 **To:** the next Claude Code session
-**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.10** (OI-13 built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
+**Status:** every build-order step is implemented and verified end to end on the live database. TRS is at **v0.11** (OI-13 and OI-11 built on branch `deployment`). The demo is paused at **July 21, 2025** with week 4's suggestions open. Nothing since commit `0181ef1` is committed.
 
 Read this file, then `TRS-HOMEWATT-001.md` in full, then `CLAUDE.md`, before changing anything.
 
@@ -72,13 +72,13 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 | CMP-09 splitter | `cmp09_nilm/co.py`, `runner.py`, `data/models/co-v2.1.json` | Combinatorial optimisation. Deployed co-v2.1 (power only + synthetic hvac state + per-day baseload estimate) writes 60 s `nilm` rows each replayed day (TRS-09-10). `homewatt cmp09 fit` refits and stores scores; `homewatt cmp09 run --start --end` backfills. |
 | CMP-11 predictor | `cmp11_forecaster` | LightGBM vs seasonal-naive, time-ordered 80/20; naive if it doesn't win or < 14 days. |
 | CMP-12 fridge detector | `cmp12_anomaly` | Median/MAD z, two consecutive days, baseline skips anomalous days; fridge only in V1. |
-| CMP-13 savings calculator | `cmp13_simulator`, `config/atl.yaml` | Weekly batch of 3, stable within the week; dismissed slot refilled; suppression after 3 ignored weeks. |
+| CMP-13 savings calculator | `cmp13_simulator`, `config/atl.yaml` | Weekly batch of 3, stable within the week; dismissed slot refilled; suppression after 3 ignored weeks. Searches can be a grid (v0.11): precool picks its length (1–3 h) and depth (0.5–2 °C) each week, priced with the thermostat model. |
 | CMP-14 sign-up (seed only) | `cmp14_onboarding` | No form yet; price-plan page is OI-10. |
 | CMP-15 API | `cmp15_api` | All costing and all number formatting happen here (`src/homewatt/display.py`). |
 | CMP-16 dashboard | `dashboard/` (Vite, React, TS) | Tokens in `dashboard/src/styles/tokens.css`; no costing or formatting in the frontend (tests enforce). |
 | CMP-17 ledger | `cmp17_ledger` + reducers | Dismiss, accept, week-end expiry, all transitions logged. |
 | CMP-18 verifier | `cmp18_verifier` | Uses only the forecast that priced the action. |
-| CMP-19 thermostat | `cmp19_actuator` | One `set_setpoint` call site; log row before command; clamp to 18–27 °C, 2 °C per tap; refuse stale state. |
+| CMP-19 thermostat | `cmp19_actuator` | One `set_setpoint` call site; log row before command; clamp to 18–27 °C, 2 °C per tap; refuse stale state. v0.11: `ScheduleActuator` installs the precool schedule (table `thermostat_schedule`, ends at week end, 24 h undo via `/api/schedules/{id}/undo`); the demo's air conditioner follows it (`demo/driver.py: apply_schedules`). |
 | CMP-20 narrator | `cmp20_narrator` | Gemini behind a one-method protocol; numbers checked verbatim; fallback text if a check fails, retried next run. |
 | Demo driver | `src/homewatt/demo/` | `reset`, `init`, `advance`, `status`. State in `data/synthetic/demo/state.json`. |
 | Tests | `tests/` mirrors components; `tests/module/test_live_*` need `HOMEWATT_TEST_DB=1`. |
@@ -107,7 +107,6 @@ Other commands: `homewatt cmp09 evaluate` (splitter scores), `homewatt cmp17 lis
 | ID | Question |
 |---|---|
 | OI-10 | Price-plan landing page at sign-up so prices are personal. He said **"not now"** on 2026-10-04 after the dashboard was running. Raise it again only when he brings it up or asks what's next. |
-| OI-11 | Precool needs a daily thermostat schedule, which TRS-SYS-03 forbids. Built as advice-only. Options: keep, program the device's own schedule once on the tap, or drop the actuator field. |
 | OI-12 | API takes 225–650 ms per request on Maincloud vs the 300 ms target. Options: cache reads in CMP-15, or let the dashboard subscribe to public tables. |
 | OI-06 | Live scheduling (one scheduler vs cron). The demo driver runs the jobs for the replay. |
 

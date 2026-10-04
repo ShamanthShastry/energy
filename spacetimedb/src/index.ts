@@ -669,6 +669,77 @@ export const failActuation = spacetimedb.reducer(
   }
 );
 
+// ------------------------------------------------------------------ v0.11 device schedules (TRS-19-10..12)
+const ScheduleSpec = t.object('ScheduleSpec', {
+  scheduleId: t.string(), actionId: t.string(), householdId: t.string(), applianceId: t.string(), kind: t.string(),
+  weekdaysOnly: t.bool(), preStartHour: t.u8(), peakStartHour: t.u8(), peakEndHour: t.u8(), preCoolC: t.f32(),
+  peakWarmC: t.f32(), minC: t.f32(), maxC: t.f32(), maxStepC: t.f32(), validUntilUs: t.i64(),
+});
+
+function scheduleInForce(ctx: Ctx, householdId: string, applianceId: string, now: bigint) {
+  return [...ctx.db.thermostatSchedule.byHouseholdAppliance.filter([householdId, applianceId])].find(
+    s => (s.status === 'installed' || s.status === 'removing' || s.status === 'pending') && s.validUntilUs > now
+  );
+}
+
+/** TRS-19-03: the schedule row is written 'pending' before the install command. One in force per device (TRS-19-11). */
+export const beginScheduleInstall = spacetimedb.reducer({ spec: ScheduleSpec }, (ctx, { spec }) => {
+  requireOwner(ctx);
+  if (spec.kind !== 'precool') throw new SenderError(`unknown schedule kind ${spec.kind}`);
+  if (!(spec.preStartHour < spec.peakStartHour && spec.peakStartHour < spec.peakEndHour && spec.peakEndHour <= 24)) {
+    throw new SenderError('schedule hours out of order');
+  }
+  if (spec.preCoolC < 0 || spec.peakWarmC < 0 || spec.preCoolC > spec.maxStepC || spec.peakWarmC > spec.maxStepC) {
+    throw new SenderError('TRS-19-02: schedule offsets exceed the step limit');
+  }
+  const now = nowFor(ctx, spec.householdId);
+  if (spec.validUntilUs <= now) throw new SenderError('schedule would end before it starts');
+  if (spec.validUntilUs - now > 7n * 86_400_000_000n) throw new SenderError('TRS-19-11: a schedule lasts at most its week');
+  if (scheduleInForce(ctx, spec.householdId, spec.applianceId, now)) throw new SenderError('TRS-19-11: a schedule is already in force on this device');
+  ctx.db.thermostatSchedule.insert({
+    id: 0n, ...spec, validFromUs: now, status: 'pending', error: '', removedBy: '', removedAtUs: 0n,
+    undoExpiresAtUs: now + 86_400_000_000n, tsUs: now,
+  });
+});
+
+/** The simulated adapter's install_schedule: only a pending, logged schedule can be installed. */
+export const installSchedule = spacetimedb.reducer({ scheduleId: t.string() }, (ctx, { scheduleId }) => {
+  requireOwner(ctx);
+  const s = ctx.db.thermostatSchedule.scheduleId.find(scheduleId);
+  if (!s) throw new SenderError(`no schedule ${scheduleId}`);
+  if (s.status !== 'pending') throw new SenderError(`schedule ${scheduleId} is ${s.status}`);
+  ctx.db.thermostatSchedule.id.update({ ...s, status: 'installed' });
+});
+
+/** TRS-19-03 for removal: logged 'removing' (with who asked) before the remove command. */
+export const beginScheduleRemoval = spacetimedb.reducer({ scheduleId: t.string(), removedBy: t.string() }, (ctx, { scheduleId, removedBy }) => {
+  requireOwner(ctx);
+  if (removedBy !== 'undo') throw new SenderError('TRS-19-01: a schedule is removed only by the user (undo)');
+  const s = ctx.db.thermostatSchedule.scheduleId.find(scheduleId);
+  if (!s) throw new SenderError(`no schedule ${scheduleId}`);
+  if (s.status !== 'installed') throw new SenderError(`schedule ${scheduleId} is ${s.status}`);
+  ctx.db.thermostatSchedule.id.update({ ...s, status: 'removing', removedBy });
+});
+
+/** The simulated adapter's remove_schedule. */
+export const removeSchedule = spacetimedb.reducer({ scheduleId: t.string() }, (ctx, { scheduleId }) => {
+  requireOwner(ctx);
+  const s = ctx.db.thermostatSchedule.scheduleId.find(scheduleId);
+  if (!s) throw new SenderError(`no schedule ${scheduleId}`);
+  if (s.status !== 'removing') throw new SenderError(`schedule ${scheduleId} is ${s.status}`);
+  ctx.db.thermostatSchedule.id.update({ ...s, status: 'removed', removedAtUs: nowFor(ctx, s.householdId) });
+});
+
+/** A failed install ends 'failed'; a failed removal goes back to 'installed' with the error. */
+export const failSchedule = spacetimedb.reducer({ scheduleId: t.string(), error: t.string() }, (ctx, { scheduleId, error }) => {
+  requireOwner(ctx);
+  const s = ctx.db.thermostatSchedule.scheduleId.find(scheduleId);
+  if (!s) throw new SenderError(`no schedule ${scheduleId}`);
+  if (s.status === 'pending') ctx.db.thermostatSchedule.id.update({ ...s, status: 'failed', error });
+  else if (s.status === 'removing') ctx.db.thermostatSchedule.id.update({ ...s, status: 'installed', removedBy: '', error });
+  else throw new SenderError(`schedule ${scheduleId} is ${s.status}`);
+});
+
 // ------------------------------------------------------------------ CMP-20 narrator statements
 /** TRS-20-08: a new statement for an action supersedes the current one; nothing is deleted. */
 export const writeStatement = spacetimedb.reducer(

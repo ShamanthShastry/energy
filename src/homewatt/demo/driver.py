@@ -85,6 +85,31 @@ def accepted_actions(client, household_id: str) -> pd.DataFrame:
     return acts.sort_values("accepted_at_us").reset_index(drop=True)
 
 
+def apply_schedules(client, household_id: str, step_ts: pd.DatetimeIndex, sp: np.ndarray, tz: str) -> tuple[np.ndarray, bool]:
+    """v0.11 TRS-19-07/10/11: the simulated thermostat runs each installed schedule from its install
+    time until it ends (week end) or is undone, on top of the setpoint in force at each step."""
+    from homewatt.cmp06_synth.thermostat import schedule_setpoints
+    from homewatt.spacetime import from_us
+
+    df = client.sql(f"SELECT * FROM thermostat_schedule WHERE household_id = '{household_id}'")
+    if df.empty:
+        return sp, False
+    df = df[df["status"].isin(["installed", "removing", "removed"])]
+    out = sp.copy()
+    for r in df.sort_values("ts_us").to_dict("records"):
+        start = from_us(int(r["valid_from_us"]))
+        end = from_us(int(r["valid_until_us"]))
+        if r["status"] == "removed" and int(r["removed_at_us"]) > 0:
+            end = min(end, from_us(int(r["removed_at_us"])))
+        m = np.asarray((step_ts >= start) & (step_ts < end))
+        if not m.any():
+            continue
+        out[m] = schedule_setpoints(step_ts[m].tz_convert(tz), out[m], int(r["peak_start_hour"]), int(r["peak_end_hour"]),
+                                    int(r["peak_start_hour"]) - int(r["pre_start_hour"]), float(r["pre_cool_c"]), float(r["peak_warm_c"]),
+                                    float(r["min_c"]), float(r["max_c"]), float(r["max_step_c"]), bool(r["weekdays_only"]))
+    return out, len(df) > 0
+
+
 def behaviours_and_setpoints(client, state: DemoState, step_ts: pd.DatetimeIndex, base_setpoint: float):
     """(behaviours, setpoint array per 60 s step or None, key)."""
     from homewatt.cmp06_synth.behaviour import Behaviour
@@ -108,23 +133,15 @@ def behaviours_and_setpoints(client, state: DemoState, step_ts: pd.DatetimeIndex
                                         source_action_id=a["action_id"]))
         elif at == "fridge_service":
             behaviours.append(Behaviour(appliance_id=a["appliance_id"], from_ts=t0, kind="end_fault", source_action_id=a["action_id"]))
-        elif at == "hvac_precool":
-            # Advice-only in V1 (TRS-SYS-03 forbids scheduled device changes); the simulated household
-            # follows it by hand: cooler 13:00-15:00, air conditioner resting 15:00-19:00, weekdays.
-            local = step_ts.tz_convert(tz)
-            wk = local.weekday < 5
-            after = step_ts >= pd.Timestamp(t0)
-            pre = after & wk & (local.hour >= int(params.get("peak_start", 15)) - 2) & (local.hour < int(params.get("peak_start", 15)))
-            rest = after & wk & (local.hour >= int(params.get("peak_start", 15))) & (local.hour < int(params.get("peak_end", 19)))
-            sp[np.asarray(pre)] -= 2.0
-            sp[np.asarray(rest)] = 35.0
-            changed_sp = True
-        # hvac_setpoint_away is a device action: it reaches the timeline only through the actuation log
+        # hvac_setpoint_away and hvac_precool are device actions: they reach the timeline only through
+        # the actuation log and the installed schedules (TRS-19-07), never through the ledger
     acts_log = client.sql(f"SELECT * FROM actuation WHERE household_id = '{hh}' AND result = 'applied'")
     for r in acts_log.sort_values("ts_us").to_dict("records") if len(acts_log) else []:
         at = from_us(int(r["ts_us"]))
-        sp[np.asarray(step_ts >= at)] = np.where(sp[np.asarray(step_ts >= at)] >= 35.0, 35.0, float(r["applied_c"]))
+        sp[np.asarray(step_ts >= at)] = float(r["applied_c"])
         changed_sp = True
+    sp, sched_changed = apply_schedules(client, hh, step_ts, sp, tz)
+    changed_sp = changed_sp or sched_changed
     key_src = json.dumps({"b": [b.model_dump(mode="json") for b in behaviours], "sp": hashlib.sha256(sp.tobytes()).hexdigest() if changed_sp else ""}, sort_keys=True)
     return behaviours, (sp if changed_sp else None), hashlib.sha256(key_src.encode()).hexdigest()[:16]
 

@@ -12,10 +12,14 @@ timestamp forward (TRS-19-07).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from homewatt.cmp06_synth.profile import ThermostatParams
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 STEP_S = 60
 STEPS_PER_HOUR = 3600 // STEP_S
@@ -75,3 +79,32 @@ def default_harmonic_profile(vrms_v: float, power_factor: float) -> np.ndarray:
 
 def expand_to_samples(x: np.ndarray, samples_per_step: int, n_samples: int) -> np.ndarray:
     return np.repeat(x, samples_per_step)[:n_samples]
+
+
+def schedule_setpoints(
+    local_ts: pd.DatetimeIndex,
+    base_c: np.ndarray,
+    peak_start: int,
+    peak_end: int,
+    pre_hours: int,
+    pre_cool_c: float,
+    peak_warm_c: float,
+    lo_c: float,
+    hi_c: float,
+    max_step_c: float,
+    weekdays_only: bool = True,
+) -> np.ndarray:
+    """TRS-19-10 (v0.11) precool schedule: on weekdays, base − pre_cool_c from peak_start − pre_hours
+    to peak_start and base + peak_warm_c from peak_start to peak_end; base otherwise. Every value is
+    clamped to [lo_c, hi_c] and to max_step_c from the base (TRS-19-02). One function for pricing
+    (CMP-13), the device preview (CMP-19) and the simulated device (TRS-19-07)."""
+    base = np.asarray(base_c, dtype=np.float64)
+    sp = base.copy()
+    h = np.asarray(local_ts.hour)
+    day = np.asarray(local_ts.weekday < 5) if weekdays_only else np.ones(len(local_ts), dtype=bool)
+    pre = day & (h >= peak_start - pre_hours) & (h < peak_start)
+    peak = day & (h >= peak_start) & (h < peak_end)
+    sp[pre] = base[pre] - pre_cool_c
+    sp[peak] = base[peak] + peak_warm_c
+    sp = np.clip(sp, lo_c, hi_c)
+    return np.clip(sp, base - max_step_c, base + max_step_c)

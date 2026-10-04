@@ -32,12 +32,24 @@ class Template(BaseModel):
     shape: Literal["shift", "trim", "setpoint", "maintenance"]
     applies_to: list[str]
     params: dict = Field(default_factory=dict)
-    search: Search | None = None
+    search: Search | list[Search] | None = None  # v0.11: several ranges are searched as a grid
     requires_alert: bool = False
     requires_tou: bool = False
     actuator: str | None = None
     assumption: str
     retired: bool = False
+
+    def searches(self) -> list[Search]:
+        if self.search is None:
+            return []
+        return self.search if isinstance(self.search, list) else [self.search]
+
+    def candidates(self) -> list[dict]:
+        """TRS-13-12: the fixed params with every combination of the searched values."""
+        out = [dict(self.params)]
+        for sr in self.searches():
+            out = [dict(c, **{sr.name: v}) for c in out for v in sr.values()]
+        return out
 
 
 class ATL(BaseModel):

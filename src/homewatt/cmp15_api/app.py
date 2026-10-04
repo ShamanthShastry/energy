@@ -125,10 +125,10 @@ def post_dismiss(action_id: str):
 
 
 def _actuator(c: data.Ctx):
-    from homewatt.cmp19_actuator.actuator import Actuator
+    from homewatt.cmp19_actuator.actuator import ScheduleActuator
     from homewatt.cmp19_actuator.adapter import SimulatedThermostat
 
-    return Actuator(c.client, c.hh, SimulatedThermostat(c.client, c.hh), c.now)
+    return ScheduleActuator(c.client, c.hh, SimulatedThermostat(c.client, c.hh), c.now)
 
 
 @app.post("/api/actions/{action_id}/take")
@@ -153,6 +153,22 @@ def post_take(action_id: str):
             "device_label": p.device_label, "current_c": p.current_c, "requested_c": p.requested_c, "applied_c": p.applied_c,
             "clamped": p.clamped, "simulated": p.simulated, "saving_month_display": money(per_month(float(a["saving_usd"]))),
         }})
+    if data.take_kind(a.to_dict()) == "schedule":  # v0.11 TRS-19-10: preview the schedule, change nothing
+        import pandas as pd
+
+        from homewatt.display import celsius, hour12
+
+        try:
+            p = _actuator(c).preview_schedule(action_id)
+        except ActuationRefused as e:
+            raise HTTPException(409, str(e)) from e
+        last_day = p.valid_until.tz_convert(c.tz) - pd.Timedelta(seconds=1)
+        return ok({"kind": "schedule", "preview": {
+            "device_label": p.device_label, "current_display": celsius(p.current_c),
+            "lines": [f"{hour12(p.pre_start)}–{hour12(p.peak_start)}: {celsius(p.pre_c)} °C", f"{hour12(p.peak_start)}–{hour12(p.peak_end)}: {celsius(p.peak_c)} °C"],
+            "days_label": "weekdays" if p.weekdays_only else "every day", "until_label": last_day.strftime("%a %b %-d"),
+            "simulated": p.simulated, "saving_month_display": money(per_month(float(a["saving_usd"]))),
+        }})
     try:
         accept(c.client, action_id)
     except SpacetimeError as e:
@@ -166,12 +182,29 @@ def post_confirm(action_id: str):
     from homewatt.cmp19_actuator.actuator import ActuationRefused
 
     c = ctx()
-    _action_row(c, action_id)
+    a = _action_row(c, action_id)
     try:
+        if data.take_kind(a.to_dict()) == "schedule":  # v0.11: install the schedule (TRS-19-10..12)
+            sr = _actuator(c).confirm_schedule(action_id)
+            return ok({"kind": "schedule", "result": sr.result, "schedule_id": sr.schedule_id, "error": sr.error})
         r = _actuator(c).confirm(action_id)
     except ActuationRefused as e:
         raise HTTPException(409, str(e)) from e
-    return ok({"result": r.result, "previous_c": r.previous_c, "applied_c": r.applied_c, "actuation_id": r.actuation_id, "error": r.error})
+    return ok({"kind": "thermostat", "result": r.result, "previous_c": r.previous_c, "applied_c": r.applied_c,
+               "actuation_id": r.actuation_id, "error": r.error})
+
+
+@app.post("/api/schedules/{schedule_id}/undo")
+def post_undo_schedule(schedule_id: str):
+    """v0.11 TRS-19-12: within 24 h, remove an installed schedule, logged as 'undo'."""
+    from homewatt.cmp19_actuator.actuator import ActuationRefused
+
+    c = ctx()
+    try:
+        r = _actuator(c).undo_schedule(schedule_id)
+    except ActuationRefused as e:
+        raise HTTPException(409, str(e)) from e
+    return ok({"result": r.result, "schedule_id": r.schedule_id, "error": r.error})
 
 
 @app.post("/api/actuations/{actuation_id}/undo")

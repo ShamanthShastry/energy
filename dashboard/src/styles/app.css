@@ -127,3 +127,7 @@ line.ref { stroke: var(--muted); stroke-width: 1; }
   .btns { justify-content: flex-start; }
   .history li { grid-template-columns: 1fr; gap: 4px; }
 }
+
+/* v0.11 precool schedule on the thermostat card and in its confirm step */
+.schedule { display: grid; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.schedule-lines { margin: 2px 0; padding-left: 18px; font-variant-numeric: tabular-nums; }

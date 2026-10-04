@@ -93,7 +93,25 @@ def _price(template: Template, app: ApplianceInfo, kwh: pd.Series, tariff: Tarif
     if template.shape == "setpoint":
         if hh.thermostat is None or hh.current_setpoint_c is None or weather is None:
             return None
-        delta = float(p["delta_c"]) * float(p.get("sign", 1))
+        if p.get("schedule") == "precool":  # v0.11: installed on the tap as a weekday schedule (TRS-19-10)
+            win = next((w for w in (tariff.peak_window(d) for d in pd.DatetimeIndex(kwh.index).tz_convert(tariff.tz).date) if w), None)
+            if win is None:
+                return None
+            lo, hi = hh.device_bounds or (18.0, 27.0)
+            step = hh.max_step_c or 2.0
+            cur = hh.current_setpoint_c
+            p["peak_start"], p["peak_end"] = win
+            p["pre_start"] = win[0] - int(p["pre_hours"])
+            p["current_setpoint_c"] = cur
+            p["pre_setpoint_c"] = float(min(max(cur - float(p["pre_cool_c"]), lo, cur - step), hi))
+            p["peak_setpoint_c"] = float(max(min(cur + float(p["peak_warm_c"]), hi, cur + step), lo))
+            # the effective offsets after the bounds, so the assumption text says what the device will do
+            p["pre_cool_c"] = round(cur - p["pre_setpoint_c"], 1)
+            p["peak_warm_c"] = round(p["peak_setpoint_c"] - cur, 1)
+            out = shapes.schedule(kwh, weather, hh.thermostat, cur, tariff, win[0], win[1], int(p["pre_hours"]), float(p["pre_cool_c"]),
+                                  float(p["peak_warm_c"]), lo, hi, step, bool(p.get("weekdays_only", True)))
+            return out, p
+        delta =float(p["delta_c"]) * float(p.get("sign", 1))
         target = hh.current_setpoint_c + delta
         if hh.device_bounds is not None and not (hh.device_bounds[0] <= target <= hh.device_bounds[1]):
             return None  # A.3: a delta that leaves the bounds is not evaluated
@@ -130,9 +148,7 @@ def price_all(atl: ATL, hh: Household, forecast: pd.DataFrame, tariff: Tariff, m
                                         base, base, 0.0, 0.0, _assume(template, app, template.params), made_at, horizon,
                                         False, "flat_tariff", None, 0.0, template.actuator))
                 continue
-            candidates = [dict(template.params)]
-            if template.search is not None:
-                candidates = [dict(template.params, **{template.search.name: v}) for v in template.search.values()]
+            candidates = template.candidates()  # TRS-13-12: every combination of the declared search ranges
             best: tuple[float, pd.Series, dict] | None = None
             for cand in candidates:
                 res = _price(template, app, kwh, tariff, hh, weather, cand)
@@ -152,8 +168,6 @@ def price_all(atl: ATL, hh: Household, forecast: pd.DataFrame, tariff: Tariff, m
             surfaced = monthly >= MONTHLY_FLOOR_USD
             reason = None if surfaced else ("flat_tariff" if tariff.is_flat and template.shape == "shift" else "below_floor")
             rank = saving if (hh.first_week or score is None) else saving * (NEUTRAL_SCORE + score)
-            if template.search is not None:
-                used[template.search.name] = used[template.search.name]
             out.append(PricedAction(hh.household_id, app.appliance_id, template.action_type, used, base, cf,
                                     round(saving, 6), _nz(round(base.kg_co2 - cf.kg_co2, 6)), _assume(template, app, used),
                                     made_at, horizon, surfaced, reason, score, rank, template.actuator))
