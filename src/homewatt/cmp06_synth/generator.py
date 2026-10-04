@@ -18,6 +18,7 @@ import pandas as pd
 
 from homewatt.cmp00_activations.library import ActivationLibrary
 from homewatt.cmp06_synth import thermostat as thermo
+from homewatt.cmp06_synth.behaviour import Behaviour
 from homewatt.cmp06_synth.fault import Fault
 from homewatt.cmp06_synth.profile import ApplianceSchedule, Profile
 from homewatt.schema import (
@@ -155,6 +156,7 @@ def generate(
     seed: int,
     fault: Fault | None = None,
     setpoint_override: np.ndarray | None = None,
+    behaviours: list[Behaviour] | None = None,
 ) -> Timeline:
     """Build `days` days from `start_local` (naive local date-time in profile.local_tz)."""
     tz = ZoneInfo(profile.local_tz)
@@ -204,6 +206,10 @@ def generate(
         tracks[app_id] = tr
         fault_mask |= fm
         log.info("%s: on-time %.3f", app_id, float((tr[:, IDX_P_ACTIVE] > ON_THRESHOLD_W).mean()))
+
+    # Demo household behaviour (§4.2): accepted suggestions, applied from their acceptance time.
+    for b in behaviours or []:
+        _apply_behaviour(b, tracks, fault_mask, fault, ts, tz)
 
     # TRS-06-07/08 synthesized hvac
     hvac_id = None
@@ -296,6 +302,11 @@ def generate(
         "overlap_fraction": round(overlap, 4),
         "fault": fault.model_dump() if fault else None,
         "fault_samples": int(fault_mask.sum()),
+        "behaviours": [b.model_dump(mode="json") for b in behaviours or []],
+        "setpoint_override": None if setpoint_override is None else {
+            "min_c": float(np.min(setpoint_override)), "max_c": float(np.max(setpoint_override)),
+            "sha8": __import__("hashlib").sha256(np.asarray(setpoint_override, dtype=np.float64).tobytes()).hexdigest()[:8],
+        },
     }
     if hvac_id is not None:
         meta["appliances"][hvac_id] = {
@@ -328,3 +339,38 @@ def write_timeline(tl: Timeline, out_dir: Path) -> dict[str, str]:
     meta = {**tl.meta, "sha256": shas}
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     return shas
+
+
+def _apply_behaviour(b: Behaviour, tracks: dict[str, np.ndarray], fault_mask: np.ndarray, fault: Fault | None,
+                     ts: pd.DatetimeIndex, tz: ZoneInfo) -> None:
+    if b.appliance_id not in tracks:
+        raise ValueError(f"behaviour names unknown appliance '{b.appliance_id}'")
+    tr = tracks[b.appliance_id]
+    i0 = int(ts.searchsorted(pd.Timestamp(b.from_ts).tz_convert("UTC")))  # same unit as ts, whatever pandas picked
+    if i0 >= len(tr):
+        return
+    if b.kind == "scale":
+        tr[i0:] *= np.float32(b.factor)
+    elif b.kind == "end_fault":
+        if fault is None or fault.appliance_id != b.appliance_id or fault.kind != "power":
+            return
+        m = fault_mask.copy()
+        m[:i0] = False
+        tr[m] /= np.float32(1.0 + fault.magnitude)
+        fault_mask[m] = False
+    elif b.kind == "shift_peak":
+        local = ts.tz_convert(tz)
+        hours = local.hour.to_numpy()
+        days = local.normalize()
+        weekday = local.weekday.to_numpy() < 5
+        offset = int((b.to_hour - b.peak_start) * 3600 / SAMPLE_PERIOD_S)
+        in_peak = (hours >= b.peak_start) & (hours < b.peak_end)
+        if b.weekdays_only:
+            in_peak &= weekday
+        in_peak[:i0] = False
+        idx = np.flatnonzero(in_peak)
+        idx = idx[idx + offset < len(tr)]
+        moved = tr[idx].copy()
+        tr[idx] = 0.0
+        np.add.at(tr, idx + offset, moved)
+        del days

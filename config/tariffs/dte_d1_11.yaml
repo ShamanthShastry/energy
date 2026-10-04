@@ -1,0 +1,77 @@
+# CMP-04 reference tariff: DTE Electric Time of Day 3 p.m.-7 p.m., rate D1.11 (TRS §CMP-04).
+# Source: DTE residential rate card effective 2025-02-06. All-in energy price = capacity +
+# non-capacity + 9.726 ¢/kWh distribution. RE-CHECK THE CARD before the event: a summer increase
+# was reported after the card's date (HANDOFF housekeeping).
+tariff_id: dte_d1_11
+utility: DTE Electric
+plan: Time of Day 3-7 p.m. (D1.11)
+timezone: America/Detroit
+valid_from: 2025-02-06
+# Static regional carbon intensity (OI-04): EPA eGRID 2022, RFCM subregion (Michigan),
+# 1,124 lb CO2/MWh ≈ 0.510 kg/kWh.
+kg_co2_per_kwh: 0.510
+carbon_source: "EPA eGRID 2022 RFCM annual output emission rate"
+fixed_usd_per_month: 8.50   # TRS-04-05: stored, excluded from per-appliance and per-action figures
+# DTE observed holidays (off-peak all day). Confirm against the current tariff book.
+holidays:
+  - 2025-01-01
+  - 2025-05-26
+  - 2025-07-04
+  - 2025-09-01
+  - 2025-11-27
+  - 2025-12-25
+  - 2026-01-01
+  - 2026-05-25
+  - 2026-07-03
+  - 2026-09-07
+  - 2026-11-26
+  - 2026-12-25
+seasons:
+  - name: summer
+    start: "06-01"
+    end: "09-30"
+    periods:
+      - name: peak
+        days: [weekday]
+        start_hour: 15
+        end_hour: 19
+        usd_per_kwh: 0.24133
+      - name: off_peak
+        days: [weekday]
+        start_hour: 0
+        end_hour: 15
+        usd_per_kwh: 0.18435
+      - name: off_peak
+        days: [weekday]
+        start_hour: 19
+        end_hour: 24
+        usd_per_kwh: 0.18435
+      - name: off_peak
+        days: [weekend, holiday]
+        start_hour: 0
+        end_hour: 24
+        usd_per_kwh: 0.18435
+  - name: non_summer
+    start: "10-01"
+    end: "05-31"
+    periods:
+      - name: peak
+        days: [weekday]
+        start_hour: 15
+        end_hour: 19
+        usd_per_kwh: 0.20045
+      - name: off_peak
+        days: [weekday]
+        start_hour: 0
+        end_hour: 15
+        usd_per_kwh: 0.18435
+      - name: off_peak
+        days: [weekday]
+        start_hour: 19
+        end_hour: 24
+        usd_per_kwh: 0.18435
+      - name: off_peak
+        days: [weekend, holiday]
+        start_hour: 0
+        end_hour: 24
+        usd_per_kwh: 0.18435

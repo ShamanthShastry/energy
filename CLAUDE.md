@@ -10,7 +10,7 @@ Read `HANDOFF.md` first, then `TRS-HOMEWATT-001.md` in full, before writing any 
 
 ## Source of truth
 
-`TRS-HOMEWATT-001.md` (v0.4). Every module maps to a CMP-nn; every behaviour maps to a TRS-nn-mm. Reference the requirement ID in commit messages and docstrings. Bump the revision history table when the TRS changes.
+`TRS-HOMEWATT-001.md` (v0.9.1). Every module maps to a CMP-nn; every behaviour maps to a TRS-nn-mm. Reference the requirement ID in commit messages and docstrings. Bump the revision history table when the TRS changes.
 
 ## Hard rules (from the TRS, see HANDOFF.md §Settled decisions)
 
@@ -19,12 +19,13 @@ Read `HANDOFF.md` first, then `TRS-HOMEWATT-001.md` in full, before writing any 
 - Model evaluation splits by recording session, never by shuffled sample. Forecaster: time-ordered 80/20.
 - Gemini (CMP-20) is a narrator. Structured input only; every number verbatim; never proposes actions.
 - Actions come only from the ATL (`atl.yaml`, Annex A). Six templates. Adding one is a TRS change.
+- Per-appliance sources are plug (measured), nilm (estimated), sim (simulated feed, demo ground truth). Never label sim as measured.
 - Raw data is never updated or deleted. Derived tables add rows under a new `model_version`. Only `ingest_batch` inserts into raw_aggregate; only the owner identity may call write reducers.
 - Dataset session `05-21` is excluded. The train/test split file is written once and never re-split.
 
 ## Stack
 
-Python 3.11 · SpacetimeDB on Maincloud (TypeScript module in `spacetimedb/`, database `house-energy-7q7yy`) · FastAPI · PyTorch (seq2point) + NILMTK (CO baseline) · LightGBM · Gemini API (JSON response schema) · React + TypeScript · Open-Meteo.
+Python 3.11 · SpacetimeDB on Maincloud (TypeScript module in `spacetimedb/`, database `house-energy-7q7yy`) · FastAPI · NILM: combinatorial-optimisation baseline in numpy (seq2point not built) · LightGBM · Gemini API (`gemini-2.5-flash`, JSON response schema, key in `.env`) · React + TypeScript + Vite (`dashboard/`) · Open-Meteo.
 
 ## Conventions
 
@@ -35,7 +36,10 @@ Python 3.11 · SpacetimeDB on Maincloud (TypeScript module in `spacetimedb/`, da
 - `init` runs only on a database's first publish; `spacetime publish --delete-data=always` re-runs it (demo reset only).
 - Energy in kWh, power in W, temperature in °C internally. Convert at the display layer.
 - Synthetic timelines are files under `data/synthetic/`, fed through the replay path only (TRS-05-06). Never insert them directly.
-- Demo timelines are dated June–September (DTE summer peak gap).
+- Demo timelines are dated June–September (DTE summer peak gap). The demo runs through `homewatt demo` (see README); it never taps actions itself.
+- Every number the user sees is formatted in `src/homewatt/display.py` and sent as a string by CMP-15; the dashboard formats nothing.
+- Update `docs/flowchart.mmd` only when Shamanth asks. Write its labels for a PM: component name and CMP number, the key detail, the status.
+- Run servers with Bash in the background (the in-app preview launcher cannot read `~/Documents`).
 
 ## Dataset
 

@@ -37,3 +37,24 @@ def replay(
     typer.echo(json.dumps(counters, indent=2))
     if sink == "memory":
         typer.echo(f"memory sink holds {len(s.rows)} rows, {len(s.gaps)} gap events")
+
+
+@app.command("replay-tracks")
+def replay_tracks(
+    truth: Path = typer.Argument(..., help="truth.parquet from CMP-06"),
+    meta: Path | None = typer.Option(None, help="meta.json next to it (default)"),
+    period: float = typer.Option(60.0, help="cadence of the simulated feed in seconds"),
+    sink: str = typer.Option("spacetime", help="spacetime | memory"),
+):
+    """Feed the CMP-06 ground-truth tracks as source='sim' (simulated feed, TRS-SYS-02 v0.5)."""
+    from homewatt.cmp05_ingest.replay import read_tracks, run_tracks
+    from homewatt.cmp05_ingest.service import IngestionService
+    from homewatt.cmp05_ingest.sinks import MemorySink, SpacetimeSink
+
+    df, model_version = read_tracks(truth, meta or truth.with_name("meta.json"), period)
+    typer.echo(f"{len(df)} rows, {df['appliance_id'].nunique()} appliances, model_version {model_version}")
+    s = MemorySink() if sink == "memory" else SpacetimeSink()
+    svc = IngestionService(s)
+    counters = run_tracks(df, model_version, svc, period)
+    svc.close()
+    typer.echo(json.dumps({k: v for k, v in counters.items() if k.startswith("plug")}, indent=2))

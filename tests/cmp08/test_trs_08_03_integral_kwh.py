@@ -54,3 +54,5 @@ def test_trs_08_02_nilm_rows_without_model_version_are_refused_before_the_db():
         w.write_frame(df, source="nilm", model_version="")
     with pytest.raises(ValueError):
         w.write_frame(df, source="plug", model_version="v1")
+    with pytest.raises(ValueError, match="TRS-08-02"):
+        w.write_frame(df, source="sim", model_version="")

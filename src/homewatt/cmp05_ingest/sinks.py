@@ -11,7 +11,7 @@ from typing import Protocol
 
 import numpy as np
 
-from homewatt.cmp05_ingest.models import GapEvent, PlugSample, Sample
+from homewatt.cmp05_ingest.models import ApplianceSample, GapEvent, Sample
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Sink(Protocol):
     def write_aggregate(self, rows: list[Sample]) -> int:
         """Insert rows; return the number actually inserted (duplicates ignored, TRS-07-03)."""
 
-    def write_plug(self, rows: list[PlugSample]) -> int: ...
+    def write_plug(self, rows: list[ApplianceSample]) -> int: ...
 
     def write_gap(self, gap: GapEvent) -> None: ...
 
@@ -39,7 +39,7 @@ class MemorySink:
 
     def __init__(self):
         self.rows: dict[tuple[str, datetime], np.ndarray] = {}
-        self.plug_rows: list[PlugSample] = []
+        self.plug_rows: list[ApplianceSample] = []
         self.gaps: list[GapEvent] = []
         self.counter_snapshots: list[tuple[str, dict]] = []
         self.statements = 0
@@ -57,7 +57,7 @@ class MemorySink:
                 inserted += 1
         return inserted
 
-    def write_plug(self, rows: list[PlugSample]) -> int:
+    def write_plug(self, rows: list[ApplianceSample]) -> int:
         self.plug_rows.extend(rows)
         return len(rows)
 
@@ -102,10 +102,10 @@ class SpacetimeSink:
         # The reducer cannot return a count; duplicates are reconciled from ingest_stats on close.
         return len(rows)
 
-    def write_plug(self, rows: list[PlugSample]) -> int:
+    def write_plug(self, rows: list[ApplianceSample]) -> int:
         from homewatt.cmp08_appliance_store.writer import AppliancePowerWriter
 
-        return self._wrap(lambda: AppliancePowerWriter(self.client).write_plug(rows))
+        return self._wrap(lambda: AppliancePowerWriter(self.client).write_samples(rows))
 
     def write_gap(self, gap: GapEvent) -> None:
         self._wrap(

@@ -80,12 +80,13 @@ class SpacetimeClient:
 
     # ---- reducers
     def call(self, reducer: str, *args: Any) -> None:
-        body = json.dumps(list(args), default=_json_default)
+        body = json.dumps(list(args), default=_json_default, allow_nan=False)  # SATS JSON has no NaN
         try:
             r = self._http.post(f"/call/{reducer}", content=body, headers={"content-type": "application/json"})
         except httpx.HTTPError as e:
             raise SpacetimeUnavailable(str(e)) from e
-        if r.status_code >= 500:
+        # 530 is a reducer rejecting its input (SenderError): a real error, not an outage.
+        if r.status_code >= 500 and r.status_code != 530:
             raise SpacetimeUnavailable(f"{reducer}: HTTP {r.status_code} {r.text[:300]}")
         if r.status_code >= 400:
             raise SpacetimeError(f"{reducer}: HTTP {r.status_code} {r.text[:500]}")

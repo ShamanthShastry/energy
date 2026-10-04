@@ -482,6 +482,42 @@ export const statement = table(
     unnarrated: t.bool(), // fallback to assumptionText (CMP-20 error handling)
     supersededAtUs: t.i64(), // 0 = current
     createdAtUs: t.i64(),
+    inputSha: t.string().default(''), // digest of the structured input; a changed input re-narrates
+  }
+);
+
+// ------------------------------------------------------------------ demo clock (§4.2)
+// The replayed demo runs on the timeline's own clock. When a row exists for a household, every
+// ledger, alert and actuation timestamp for it uses this time instead of the wall clock.
+export const simClock = table(
+  { name: 'sim_clock', public: true },
+  {
+    householdId: t.string().primaryKey(),
+    nowUs: t.i64(),
+  }
+);
+
+// ------------------------------------------------------------------ CMP-12 daily features
+export const applianceDayFeature = table(
+  {
+    name: 'appliance_day_feature',
+    public: true,
+    indexes: [{ accessor: 'byHouseholdApplianceDay', algorithm: 'btree', columns: ['householdId', 'applianceId', 'day'] }],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    householdId: t.string(),
+    applianceId: t.string(),
+    day: t.string(), // local date 'YYYY-MM-DD'
+    source: t.string(),
+    dutyCycle: t.f64(),
+    cyclesPerDay: t.f64(),
+    meanOnWatts: t.f64(),
+    coveredS: t.f64(),
+    zDutyCycle: t.f64(), // NaN when insufficient history (TRS-12-04)
+    zMeanOnWatts: t.f64(),
+    zCyclesPerDay: t.f64(),
+    baselineDays: t.u32(),
   }
 );
 
@@ -510,6 +546,8 @@ const spacetimedb = schema({
   thermostatState,
   actuation,
   statement,
+  simClock,
+  applianceDayFeature,
 });
 
 export default spacetimedb;

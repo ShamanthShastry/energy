@@ -1,0 +1,124 @@
+%%{init: {"theme":"base","flowchart":{"curve":"basis","nodeSpacing":26,"rankSpacing":44,"htmlLabels":true},"themeVariables":{"background":"#F7F8F5","primaryColor":"#FFFFFF","primaryBorderColor":"#5C6B62","primaryTextColor":"#17201B","lineColor":"#5C6B62","clusterBkg":"#FFFFFF","clusterBorder":"#E1E6DF","edgeLabelBackground":"#F7F8F5","fontFamily":"ui-sans-serif, system-ui, -apple-system, sans-serif","fontSize":"15px"}}}%%
+%% HomeWatt: how it works and what is built. PM-level labels (component, key detail, status), 2026-10-04 (TRS v0.9.1).
+%% Update only when Shamanth asks. Status lives in the class lines at the bottom.
+flowchart TD
+  subgraph LEG["Status · Oct 4 · all V1 steps built · demo paused at Jul 21, 2025"]
+    direction LR
+    L1["✓ Built"]
+    L2["◐ Partial"]
+    L3["? Open decision"]
+    L5["— Deferred"]
+  end
+
+  HH(["Household head"])
+  ONB["Onboarding · CMP-14<br/>ZIP + tariff seeded<br/>? price-plan page (OI-10)"]
+  LEG ~~~ HH
+  HH --> ONB
+
+  subgraph SRC["1 · Inputs"]
+    direction LR
+    TAR["Tariff · CMP-04<br/>DTE time-of-day, peak 3–7 pm<br/>✓ built"]
+    WX["Weather · CMP-03<br/>Open-Meteo, hourly<br/>✓ built"]
+    LIB["Appliance recordings · CMP-00<br/>real dataset, train/test split by session<br/>✓ built"]
+    SYN["Synthetic home · CMP-06<br/>4-week timeline, fridge fault Jul 12<br/>✓ built"]
+    PLUG["Smart plug · CMP-02<br/>— deferred"]
+  end
+  ONB --> TAR
+  ONB --> WX
+  LIB --> SYN
+
+  subgraph STORE["2 · Data store · SpacetimeDB"]
+    ING["Ingestion · CMP-05<br/>validate, flag gaps, batch write<br/>✓ built"]
+    RAW[("Raw readings · CMP-07<br/>2 s, append-only<br/>✓ built")]
+    AP[("Per-appliance usage · CMP-08<br/>hourly + daily rollups<br/>✓ built")]
+  end
+  SYN -- "whole-home, 2 s" --> ING
+  SYN -- "per-appliance sim feed, 60 s" --> ING
+  PLUG -.-> ING
+  ING --> RAW
+  ING --> AP
+
+  subgraph MODELS["3 · Models and pricing"]
+    NILM["Disaggregation (NILM) · CMP-09<br/>baseline scored, output not stored<br/>? storage cadence (OI-13)"]
+    FT["Per-home fine-tune · CMP-10<br/>— deferred"]
+    FC["Weekly forecast · CMP-11<br/>LightGBM, kWh per appliance, p50/p90<br/>✓ built"]
+    AN["Fault detection · CMP-12<br/>fridge vs. its own baseline<br/>✓ built"]
+    SIM["Savings simulator · CMP-13<br/>prices 6 action types under the tariff<br/>✓ built"]
+  end
+  RAW -.-> NILM
+  NILM -.-> AP
+  PLUG -.-> FT
+  FT -.-> NILM
+  AP --> FC
+  WX --> FC
+  AP --> AN
+  FC --> SIM
+  TAR --> SIM
+  AN -- "open alert" --> SIM
+
+  LED[("Action ledger · CMP-17<br/>status of every suggestion<br/>✓ built")]
+  NAR["Narrator · CMP-20<br/>Gemini rewrites, numbers verbatim<br/>✓ built"]
+  SIM -- "top 3 per week" --> LED
+  LED --> NAR
+
+  API["API + costing · CMP-15<br/>every $ computed here<br/>✓ built · latency over target (OI-12)"]
+  AP --> API
+  TAR --> API
+  FC --> API
+  AN --> API
+  LED --> API
+  NAR --> API
+
+  subgraph UI["4 · Dashboard · CMP-16 · ✓ built"]
+    subgraph MAIN["Home tab · read-only"]
+      direction LR
+      P1["Month-to-date + projected bill"]
+      P2["Usage by appliance"]
+      P3["Cost spikes ahead"]
+      P4["Appliance health"]
+      P5["Top saving available"]
+    end
+    subgraph ACT["Actions tab"]
+      direction TB
+      ROWS["Top 3 suggestions, ranked"]
+      TA["Take action"]
+      DIS["Dismiss"]
+    end
+    subgraph SAV["Savings tab"]
+      direction TB
+      S1["Verified savings total"]
+      S2["Outcome per suggestion"]
+    end
+  end
+  API --> MAIN
+  API --> ROWS
+  API --> SAV
+  ROWS --> TA
+  ROWS --> DIS
+
+  subgraph LOOP["5 · Weekly feedback loop"]
+    THERM["Thermostat · CMP-19<br/>simulated, confirm step, 24 h undo<br/>✓ built"]
+    CLOSE["Week close<br/>untaken suggestions expire<br/>✓ built"]
+    TRANS["Transition log · CMP-17<br/>accept, dismiss, expire<br/>✓ built"]
+    VER["Verifier · CMP-18<br/>actual vs. the forecast that priced it<br/>✓ built"]
+  end
+  TA --> TRANS
+  TA -- "setpoint actions only" --> THERM
+  DIS --> TRANS
+  CLOSE --> TRANS
+  TRANS -- "after 7 days" --> VER
+  AP --> VER
+  VER --> SAV
+  VER -. "success score re-ranks" .-> SIM
+
+  classDef done fill:#DDF2E6,stroke:#1F6B45,stroke-width:2px,color:#17201B
+  classDef partial fill:#FFFFFF,stroke:#2E9E63,stroke-width:2px,stroke-dasharray:6 3,color:#17201B
+  classDef waiting fill:#FFFFFF,stroke:#B8772A,stroke-width:3px,color:#17201B
+  classDef deferred fill:#F7F8F5,stroke:#5C6B62,stroke-width:1px,stroke-dasharray:3 3,color:#5C6B62
+  classDef actor fill:#FFFFFF,stroke:#17201B,stroke-width:1.5px,color:#17201B
+
+  class L1,TAR,WX,LIB,SYN,ING,RAW,AP,FC,AN,SIM,LED,NAR,API,P1,P2,P3,P4,P5,ROWS,TA,DIS,S1,S2,THERM,CLOSE,TRANS,VER done
+  class L2 partial
+  class L3,ONB,NILM waiting
+  class L5,FT,PLUG deferred
+  class HH actor

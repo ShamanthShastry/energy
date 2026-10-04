@@ -10,7 +10,7 @@ from collections import deque
 from collections.abc import Callable
 
 from homewatt.cmp05_ingest.batch import Batcher
-from homewatt.cmp05_ingest.models import Counters, PlugSample, Sample
+from homewatt.cmp05_ingest.models import ApplianceSample, Counters, Sample
 from homewatt.cmp05_ingest.sinks import Sink, SinkUnavailable
 from homewatt.cmp05_ingest.validate import Validator
 from homewatt.schema import SAMPLE_PERIOD_S
@@ -39,7 +39,7 @@ class IngestionService:
         # pending batches that could not be written: (enqueued_at, rows)
         self._pending: deque[tuple[float, list[Sample]]] = deque()
         self._buffer_seconds = buffer_seconds
-        self._plug_batch: list[PlugSample] = []
+        self._plug_batch: list[ApplianceSample] = []
 
     # ---- the single interface for replay and live (TRS-05-06)
     def submit(self, sample: Sample) -> bool:
@@ -55,8 +55,13 @@ class IngestionService:
             self._write(self.batcher.take())
         return True
 
-    def submit_plug(self, sample: PlugSample) -> bool:
-        if sample.watts < 0 or sample.ts.tzinfo is None:
+    def submit_plug(self, sample: ApplianceSample) -> bool:
+        """Per-appliance samples (plug or sim) share this entry point; the sink groups them by
+        source, model version and period before calling write_appliance_power."""
+        if sample.watts < 0 or sample.ts.tzinfo is None or sample.source not in ("plug", "sim"):
+            self.counters.plug_rejected += 1
+            return False
+        if sample.source == "sim" and not sample.model_version:
             self.counters.plug_rejected += 1
             return False
         self.counters.plug_accepted += 1

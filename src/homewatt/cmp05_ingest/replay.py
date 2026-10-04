@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from homewatt.cmp05_ingest.models import Sample
+from homewatt.cmp05_ingest.models import ApplianceSample, Sample
 from homewatt.cmp05_ingest.service import IngestionService
 from homewatt.schema import NUMERIC_FIELDS, SAMPLE_PERIOD_S
 
@@ -75,4 +75,45 @@ def run_replay(
         elapsed,
         n / elapsed if elapsed else 0,
     )
+    return service.counters.as_dict()
+
+
+def read_tracks(truth_path: Path, meta_path: Path, period_s: float = 60.0) -> tuple[pd.DataFrame, str]:
+    """CMP-06 truth.parquet -> long frame of per-appliance means at `period_s` cadence.
+    Returns (frame[household_id, appliance_id, ts, watts], model_version). The hvac and
+    baseload tracks are included; the fault marker is not a track."""
+    import json
+
+    meta = json.loads(Path(meta_path).read_text())
+    truth = pd.read_parquet(truth_path)
+    return tracks_from_truth(truth, meta["household_id"], period_s), sim_model_version(meta)
+
+
+def sim_model_version(meta: dict) -> str:
+    """One model_version per base timeline (seed + profile), stable across behaviour
+    regenerations, so the simulated feed stays one continuous series (TRS-SYS-02)."""
+    return f"cmp06-seed{meta['seed']}-{meta['profile_sha256'][:8]}"
+
+
+def tracks_from_truth(truth: pd.DataFrame, household_id: str, period_s: float = 60.0) -> pd.DataFrame:
+    cols = [c for c in truth.columns if c.endswith("_w")]
+    t = truth.set_index("ts")[cols].astype("float64")
+    means = t.resample(f"{int(period_s)}s", label="left", closed="left").mean()
+    long = means.reset_index().melt(id_vars="ts", var_name="appliance_id", value_name="watts")
+    long["appliance_id"] = long["appliance_id"].str.removesuffix("_w")
+    long["household_id"] = household_id
+    long = long.dropna(subset=["watts"]).sort_values(["appliance_id", "ts"]).reset_index(drop=True)
+    return long[["household_id", "appliance_id", "ts", "watts"]]
+
+
+def run_tracks(df: pd.DataFrame, model_version: str, service: IngestionService, period_s: float = 60.0) -> dict:
+    """Feed simulated per-appliance rows (source='sim') through the ingestion service."""
+    n = 0
+    for r in df.itertuples(index=False):
+        service.submit_plug(
+            ApplianceSample(r.household_id, r.appliance_id, r.ts.to_pydatetime(), float(r.watts), "sim", model_version, period_s)
+        )
+        n += 1
+    service.flush()
+    log.info("tracks done: %d sim rows for %d appliances", n, df["appliance_id"].nunique())
     return service.counters.as_dict()

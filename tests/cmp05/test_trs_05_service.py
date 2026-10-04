@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from homewatt.cmp05_ingest.batch import Batcher
-from homewatt.cmp05_ingest.models import PlugSample, Sample
+from homewatt.cmp05_ingest.models import ApplianceSample, PlugSample, Sample
 from homewatt.cmp05_ingest.service import IngestionService
 from homewatt.cmp05_ingest.sinks import MemorySink
 from homewatt.schema import IDX_VRMS, NUMERIC_FIELDS
@@ -90,3 +90,19 @@ def test_cmp02_plug_rows_go_to_appliance_power_with_source_plug():
     assert not svc.submit_plug(PlugSample("hh", "kettle", T0, -1.0))
     svc.flush()
     assert len(sink.plug_rows) == 1 and svc.counters.plug_rejected == 1
+
+
+def test_trs_sys_02_sim_rows_need_a_model_version_and_keep_their_source():
+    sink = MemorySink()
+    svc = IngestionService(sink)
+    assert not svc.submit_plug(ApplianceSample("hh", "fridge", T0, 58.0, "sim", "", 60.0))
+    assert svc.submit_plug(ApplianceSample("hh", "fridge", T0, 58.0, "sim", "cmp06-seed7", 60.0))
+    assert not svc.submit_plug(ApplianceSample("hh", "fridge", T0, 58.0, "measured", "x", 60.0))
+    svc.flush()
+    assert [r.source for r in sink.plug_rows] == ["sim"]
+
+
+def test_trs_sys_02_tracks_are_never_relabelled_as_plug():
+    src = Path(REPO / "src" / "homewatt" / "cmp05_ingest" / "replay.py").read_text()
+    assert '"sim", model_version, period_s' in src
+    assert '"plug"' not in src.split("def read_tracks")[1]

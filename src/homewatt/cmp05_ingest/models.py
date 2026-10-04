@@ -24,13 +24,20 @@ class Sample:
 
 
 @dataclass(slots=True)
-class PlugSample:
-    """CMP-02 measured appliance sample, source='plug'."""
+class ApplianceSample:
+    """Per-appliance sample. source='plug' (CMP-02, measured) or 'sim' (CMP-06 ground truth,
+    demo only, TRS-SYS-02 v0.5). NILM rows are written by CMP-09 directly, not through here."""
 
     household_id: str
     appliance_id: str
     ts: datetime
     watts: float
+    source: str = "plug"
+    model_version: str = ""  # required for 'sim'
+    period_s: float = 2.0  # the stream's sample period (TRS-08-03)
+
+
+PlugSample = ApplianceSample
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,0 +1,56 @@
+# Annex A — Action Template Library (ATL). The complete action space of CMP-13.
+# Adding a template is a TRS revision (Annex A) and a change here, nothing else. Removing one is a
+# retirement: keep the row with retired: true so historical ledger rows still resolve.
+version: 1
+templates:
+  - action_type: shift_out_of_peak
+    shape: shift
+    applies_to: [water_heater, hair_dryer, straightener, iron]
+    params: {from: tariff_peak}
+    search: {name: to_hour, min: 19, max: 23, step: 1}
+    requires_tou: true
+    requires_alert: false
+    assumption: "assumes all peak-hour use of {appliance} moves to {to_hour}:00 or later"
+
+  - action_type: hvac_setpoint_away
+    shape: setpoint
+    applies_to: [hvac]
+    params: {sign: 1}            # +1 in cooling mode; -1 (heating) defined but inactive in V1 (A.3)
+    search: {name: delta_c, min: 1, max: 3, step: 1}
+    requires_tou: false
+    requires_alert: false
+    actuator: thermostat
+    assumption: "assumes the thermostat is set {delta_c} °C warmer for the week"
+
+  - action_type: hvac_precool
+    shape: shift
+    applies_to: [hvac]
+    params: {from: tariff_peak, to: pre_peak_2h}
+    requires_tou: true
+    requires_alert: false
+    actuator: thermostat
+    assumption: "assumes the house is cooled before {peak_start}:00 and the air conditioner rests until {peak_end}:00"
+
+  - action_type: water_heater_setpoint
+    shape: trim
+    applies_to: [water_heater]
+    params: {factor: 0.90}
+    requires_tou: false
+    requires_alert: false
+    assumption: "assumes the water heater is set to 49 °C (120 °F)"
+
+  - action_type: trim_standby
+    shape: trim
+    applies_to: [laptop, screen, lamp]
+    params: {factor: 0.85}
+    requires_tou: false
+    requires_alert: false
+    assumption: "assumes {appliance} is switched off at the wall when not in use"
+
+  - action_type: fridge_service
+    shape: maintenance
+    applies_to: [fridge]
+    params: {factor: 0.85}
+    requires_tou: false
+    requires_alert: true
+    assumption: "assumes the fridge returns to its usual cycle after the coils are cleaned or the door seal fixed"

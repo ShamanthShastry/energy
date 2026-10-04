@@ -31,18 +31,44 @@ tests/              one test per TRS verification criterion: test_trs_NN_MM_<slu
 ## Quick start
 
 ```bash
-make venv            # uv venv + editable install with dev extras
+make venv            # uv venv + editable install
+uv pip install -e ".[dev,api,ml]"
 make module-install  # npm deps for the SpacetimeDB module
-make module-build    # tsc + spacetime build
-make publish         # spacetime publish to Maincloud (needs `spacetime login`)
+make publish         # publish the module to Maincloud (needs `spacetime login`)
 make library         # CMP-00 (needs data/raw/nilm-dataset, see below)
-make synth           # CMP-06 14-day demo timeline, fridge fault at day 12
-make replay          # CMP-05 replay into SpacetimeDB
-make test            # offline tests; HOMEWATT_TEST_DB=1 adds the live-store tests
+cd dashboard && npm install && npm run build && cd ..
 ```
 
+Secrets: put `GEMINI_API_KEY=...` in `.env` (gitignored). Without it the narrator falls back to
+each suggestion's plain text.
+
+## Running the demo (build-order step 9)
+
+The demo replays a 4-week July timeline (June 30 to July 27, 2025) day by day on its own clock.
+It never takes an action itself: you tap Take action on the dashboard between replays.
+
+```bash
+.venv/bin/homewatt demo reset --wipe          # empties the database; demo only
+.venv/bin/homewatt demo init                  # household, tariff, weather, base timeline
+.venv/bin/homewatt demo advance --to 2025-07-14   # 2 weeks: fridge fault on Jul 12, alert on Jul 13
+.venv/bin/homewatt api serve                  # dashboard + API at http://127.0.0.1:8000
+# tap suggestions on the Actions tab, then:
+.venv/bin/homewatt demo advance --to 2025-07-21   # verifier checks last week's taps; Savings tab fills
+```
+
+Every Monday 00:00 of the replay runs the weekly jobs in order: close last week (untaken
+suggestions expire), verify and score, forecast, price and propose 3 suggestions, narrate.
+The simulated household follows whatever it accepted, from the moment it accepted it.
+
+Other commands: `homewatt cmp09 evaluate` (NILM baseline on held-out sessions), `homewatt cmp17 list`
+(ledger), `homewatt db sql "..."`, `homewatt demo status`.
+
+Dashboard development: `homewatt api serve` and, in `dashboard/`, `npm run dev` (Vite on :5173
+proxies `/api`).
+
 SpacetimeDB SQL has no ORDER BY / GROUP BY; readers sort in Python. Reducer struct arguments use
-snake_case field names. Timestamps are microsecond integers (`*_us`).
+snake_case field names, with a digit getting its own underscore (`kwhP50` → `kwh_p_50`).
+Timestamps are microsecond integers (`*_us`).
 
 Dataset: `git clone --depth 1 https://github.com/fariddinar/nilm-dataset data/raw/nilm-dataset`.
 Cite Dinar, Paris, Busvelle, *Sensors* 2025, 25, 4601.

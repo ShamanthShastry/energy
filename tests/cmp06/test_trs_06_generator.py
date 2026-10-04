@@ -107,3 +107,34 @@ def test_cmp06_profile_naming_missing_appliance_fails_with_name(fake_library, ho
     small_profile.appliances["iron"] = ApplianceSchedule(type="iron", label="iron")
     with pytest.raises(FileNotFoundError, match="iron"):
         generate(small_profile, fake_library, hot_weather, START, days=1, seed=1)
+
+
+def test_demo_behaviour_changes_only_its_appliance_from_its_time_and_keeps_noise(fake_library, hot_weather, small_profile):
+    from homewatt.cmp06_synth.behaviour import Behaviour
+
+    base = generate(small_profile, fake_library, hot_weather, START, days=2, seed=11)
+    t0 = base.truth["ts"].iloc[SAMPLES_PER_DAY]
+    b = Behaviour(appliance_id="water_heater", from_ts=t0.to_pydatetime(), kind="scale", factor=0.9)
+    tl = generate(small_profile, fake_library, hot_weather, START, days=2, seed=11, behaviours=[b])
+    d0, d1 = slice(0, SAMPLES_PER_DAY), slice(SAMPLES_PER_DAY, None)
+    np.testing.assert_array_equal(tl.truth["water_heater_w"].iloc[d0], base.truth["water_heater_w"].iloc[d0])
+    np.testing.assert_allclose(tl.truth["water_heater_w"].iloc[d1], base.truth["water_heater_w"].iloc[d1] * 0.9, rtol=1e-6)
+    for col in ("hair_dryer_w", "fridge_w", "hvac_w"):
+        np.testing.assert_array_equal(tl.truth[col].to_numpy(), base.truth[col].to_numpy())
+    resid_a = tl.aggregate["p_active_w"].to_numpy() - tl.truth[[c for c in tl.truth if c.endswith("_w")]].sum(axis=1).to_numpy()
+    resid_b = base.aggregate["p_active_w"].to_numpy() - base.truth[[c for c in base.truth if c.endswith("_w")]].sum(axis=1).to_numpy()
+    np.testing.assert_allclose(resid_a, resid_b, atol=1e-2)  # same noise draw
+
+
+def test_demo_behaviour_end_fault_restores_normal_draw(fake_library, hot_weather, small_profile):
+    from homewatt.cmp06_synth.behaviour import Behaviour
+
+    fault = Fault(appliance_id="fridge", start_day=0, kind="power", magnitude=0.4)
+    base = generate(small_profile, fake_library, hot_weather, START, days=2, seed=11)
+    faulty = generate(small_profile, fake_library, hot_weather, START, days=2, seed=11, fault=fault)
+    t0 = base.truth["ts"].iloc[SAMPLES_PER_DAY]
+    fixed = generate(small_profile, fake_library, hot_weather, START, days=2, seed=11, fault=fault,
+                     behaviours=[Behaviour(appliance_id="fridge", from_ts=t0.to_pydatetime(), kind="end_fault")])
+    d1 = slice(SAMPLES_PER_DAY, None)
+    np.testing.assert_allclose(fixed.truth["fridge_w"].iloc[d1], base.truth["fridge_w"].iloc[d1], rtol=1e-5)
+    assert not fixed.truth["fault_active"].iloc[d1].any() and faulty.truth["fault_active"].iloc[d1].all()

@@ -83,14 +83,14 @@ def fake_library(tmp_path, rng):
 @pytest.fixture
 def hot_weather():
     """Hourly weather, 20 days from 2025-07-01 UTC, diurnal 22-34 °C."""
-    ts = pd.date_range("2025-06-30T00:00Z", periods=24 * 22, freq="h")
+    ts = pd.date_range("2025-06-30T00:00Z", periods=24 * 30, freq="h")
     temp = 28 + 6 * np.sin((ts.hour - 9) / 24 * 2 * np.pi)
     return pd.DataFrame({"ts": ts, "temp_c": temp})
 
 
 @pytest.fixture
 def cold_weather():
-    ts = pd.date_range("2025-06-30T00:00Z", periods=24 * 22, freq="h")
+    ts = pd.date_range("2025-06-30T00:00Z", periods=24 * 30, freq="h")
     return pd.DataFrame({"ts": ts, "temp_c": np.full(len(ts), 10.0)})
 
 

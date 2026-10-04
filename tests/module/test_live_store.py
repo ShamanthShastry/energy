@@ -4,6 +4,7 @@ they need the owner token (spacetime login) and write under household 'hh-pytest
 import time
 import uuid
 
+import pandas as pd
 import pytest
 
 pytestmark = pytest.mark.needs_db
@@ -59,7 +60,7 @@ def test_trs_08_03_ten_minute_gap_integrates_fifty_minutes(client, hh):
         for i in range(1800)
         if not (1_200_000_000 <= i * 2_000_000 < 1_800_000_000)
     ]
-    client.call("write_appliance_power", rows, "plug", "")
+    client.call("write_appliance_power", rows, "plug", "", 2.0)
     h = client.sql(f"SELECT * FROM appliance_hourly WHERE household_id = '{hh}'").iloc[0]
     assert h["kwh"] == pytest.approx(1.2 * 50 / 60, rel=1e-3)
     assert h["covered_s"] == pytest.approx(3000, abs=3)
@@ -70,26 +71,31 @@ def test_trs_08_02_nilm_rows_without_model_version_are_refused(client, hh):
 
     row = {"household_id": hh, "appliance_id": "x", "ts_us": us("2025-07-01T00:00:00Z"), "watts": 1.0, "on_prob": -1.0}
     with pytest.raises(SpacetimeError, match="TRS-08-02"):
-        client.call("write_appliance_power", [row], "nilm", "")
+        client.call("write_appliance_power", [row], "nilm", "", 2.0)
 
 
 def test_trs_08_06_new_model_version_adds_rows(client, hh):
     from homewatt.spacetime import us
 
     row = {"household_id": hh, "appliance_id": "x", "ts_us": us("2025-07-01T00:00:00Z"), "watts": 1.0, "on_prob": 0.5}
-    client.call("write_appliance_power", [row], "nilm", "v1")
-    client.call("write_appliance_power", [row], "nilm", "v2")
+    client.call("write_appliance_power", [row], "nilm", "v1", 2.0)
+    client.call("write_appliance_power", [row], "nilm", "v2", 2.0)
     df = client.sql(f"SELECT model_version FROM appliance_power WHERE household_id = '{hh}'")
     assert sorted(df["model_version"]) == ["v1", "v2"]
 
 
 def test_trs_07_05_window_read_of_24h_is_reasonably_fast(client):
-    """TRS-07-05 target is 500 ms on local hardware; over Maincloud HTTP this records the figure."""
+    """TRS-07-05 (v0.3): a 24 h window (43,200 rows) over the SQL endpoint in under 5 s."""
     from homewatt.cmp07_raw_store.reader import read_window
     from homewatt.spacetime import from_us
 
+    stats = client.sql("SELECT last_ts_us FROM ingest_stats WHERE household_id = 'hh-demo'")
+    if stats.empty:
+        pytest.skip("no demo data replayed")
+    end = from_us(int(stats.iloc[0]["last_ts_us"]))
     t = time.monotonic()
-    df = read_window(client, "hh-demo", from_us(0), from_us(10**18))
+    df = read_window(client, "hh-demo", end - pd.Timedelta(hours=24), end)
     elapsed = time.monotonic() - t
-    print(f"read_window: {len(df)} rows in {elapsed:.2f}s")
-    assert elapsed < 30
+    print(f"read_window 24 h: {len(df)} rows in {elapsed:.2f}s")
+    assert len(df) >= 43_000
+    assert elapsed < 5.0

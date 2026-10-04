@@ -54,13 +54,17 @@ def test_trs_08_01_appliance_power_key_includes_source_and_model_version():
 
 
 def test_trs_08_02_nilm_rows_require_model_version():
-    assert "TRS-08-02: nilm rows require modelVersion" in INDEX
+    assert "TRS-08-02: nilm and sim rows require modelVersion" in INDEX
 
 
-def test_trs_08_03_rollup_integrates_watts_times_dt_capped_at_gap_threshold():
+def test_trs_08_03_rollup_integrates_watts_times_dt_capped_at_five_periods():
     assert "const wh = (watts * dtS) / 3600.0;" in INDEX
-    assert "deltaS > 0 && deltaS <= GAP_THRESHOLD_S ? deltaS : NOMINAL_PERIOD_S" in INDEX
-    assert "const GAP_THRESHOLD_S = 10.0;" in INDEX
+    assert "deltaS > 0 && deltaS <= GAP_PERIODS * periodS ? deltaS : periodS" in INDEX
+    assert "const GAP_PERIODS = 5;" in INDEX
+
+
+def test_trs_sys_02_sources_are_plug_nilm_sim_only():
+    assert "const SOURCES = new Set(['plug', 'nilm', 'sim']);" in INDEX
 
 
 def test_trs_14_02_closed_appliance_type_list_matches_python():

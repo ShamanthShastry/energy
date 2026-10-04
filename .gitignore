@@ -31,3 +31,6 @@ dashboard/dist/
 # SpacetimeDB
 spacetime.local.json
 spacetimedb/node_modules/
+
+# TypeScript build cache
+*.tsbuildinfo
