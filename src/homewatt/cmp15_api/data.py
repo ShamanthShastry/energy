@@ -23,7 +23,7 @@ SPIKE_MARGIN = 0.25  # TRS-15-03: one named constant
 SPIKE_BASELINE_DAYS = 14
 STALE_SIM = pd.Timedelta(minutes=5)
 SOURCE_LABEL = {"plug": "measured", "nilm": "estimated", "sim": "simulated feed"}
-BASELOAD_LABEL = "Always on"
+BASELOAD_LABEL = "Background usage"
 STATUS_LABEL = {"proposed": "Open", "accepted": "Taken, checking next week", "verified": "Saved", "not_verified": "Didn't show up"}
 
 

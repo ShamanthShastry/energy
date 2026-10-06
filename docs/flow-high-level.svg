@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 440" width="1800" height="440" font-family="Arial, Helvetica, sans-serif">
+<rect width="1800" height="440" fill="#ffffff"/>
+<rect x="40.0" y="110" width="250" height="130" rx="18" fill="#DDF2E6" stroke="#1F6B45" stroke-width="3"/>
+<text x="165.0" y="166" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial-BoldMT, Arial Bold, Helvetica-Bold, Arial, sans-serif" fill="#17201B">One sensor</text>
+<text x="165.0" y="200" text-anchor="middle" font-size="20" fill="#17201B">on the breaker panel</text>
+<line x1="296.0" y1="175.0" x2="314.0" y2="175.0" stroke="#5C6B62" stroke-width="3"/>
+<polygon points="312.0,166.0 328.0,175.0 312.0,184.0" fill="#5C6B62"/>
+<rect x="334.0" y="110" width="250" height="130" rx="18" fill="#DDF2E6" stroke="#1F6B45" stroke-width="3"/>
+<text x="459.0" y="166" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial-BoldMT, Arial Bold, Helvetica-Bold, Arial, sans-serif" fill="#17201B">Synergy splits it</text>
+<text x="459.0" y="200" text-anchor="middle" font-size="20" fill="#17201B">by appliance (CNN)</text>
+<line x1="590.0" y1="175.0" x2="608.0" y2="175.0" stroke="#5C6B62" stroke-width="3"/>
+<polygon points="606.0,166.0 622.0,175.0 606.0,184.0" fill="#5C6B62"/>
+<rect x="628.0" y="110" width="250" height="130" rx="18" fill="#DDF2E6" stroke="#1F6B45" stroke-width="3"/>
+<text x="753.0" y="166" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial-BoldMT, Arial Bold, Helvetica-Bold, Arial, sans-serif" fill="#17201B">Forecasts the week,</text>
+<text x="753.0" y="200" text-anchor="middle" font-size="20" fill="#17201B">prices each change</text>
+<line x1="884.0" y1="175.0" x2="902.0" y2="175.0" stroke="#5C6B62" stroke-width="3"/>
+<polygon points="900.0,166.0 916.0,175.0 900.0,184.0" fill="#5C6B62"/>
+<rect x="922.0" y="110" width="250" height="130" rx="18" fill="#DDF2E6" stroke="#1F6B45" stroke-width="3"/>
+<text x="1047.0" y="166" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial-BoldMT, Arial Bold, Helvetica-Bold, Arial, sans-serif" fill="#17201B">Three suggestions,</text>
+<text x="1047.0" y="200" text-anchor="middle" font-size="20" fill="#17201B">in plain English</text>
+<line x1="1178.0" y1="175.0" x2="1196.0" y2="175.0" stroke="#5C6B62" stroke-width="3"/>
+<polygon points="1194.0,166.0 1210.0,175.0 1194.0,184.0" fill="#5C6B62"/>
+<rect x="1216.0" y="110" width="250" height="130" rx="18" fill="#DDF2E6" stroke="#1F6B45" stroke-width="3"/>
+<text x="1341.0" y="166" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial-BoldMT, Arial Bold, Helvetica-Bold, Arial, sans-serif" fill="#17201B">You tap:</text>
+<text x="1341.0" y="200" text-anchor="middle" font-size="20" fill="#17201B">device changes, with undo</text>
+<line x1="1472.0" y1="175.0" x2="1490.0" y2="175.0" stroke="#5C6B62" stroke-width="3"/>
+<polygon points="1488.0,166.0 1504.0,175.0 1488.0,184.0" fill="#5C6B62"/>
+<rect x="1510.0" y="110" width="250" height="130" rx="18" fill="#FFF3C4" stroke="#B8860B" stroke-width="3"/>
+<text x="1635.0" y="166" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial-BoldMT, Arial Bold, Helvetica-Bold, Arial, sans-serif" fill="#17201B">A week later:</text>
+<text x="1635.0" y="200" text-anchor="middle" font-size="20" fill="#17201B">savings verified</text>
+<path d="M1635.0,246 L1635.0,350 L753.0,350 L753.0,266" fill="none" stroke="#5C6B62" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="744.0,264 762.0,264 753.0,248" fill="#5C6B62"/>
+<text x="1194.0" y="336" text-anchor="middle" font-size="20" font-style="italic" fill="#5C6B62">learns what works, re-ranks next week</text>
+</svg>
